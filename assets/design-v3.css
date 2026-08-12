@@ -910,31 +910,76 @@ body {
   color: #86a2a5;
 }
 
+.work-row { position: relative; }
+
 .work-row.is-current-user {
+  z-index: 2;
   background: inherit;
-  box-shadow: inset 0 0 0 2px #ff9b72;
+  box-shadow: none;
 }
 
-.work-row.is-current-user .work-person-cell { box-shadow: inset 5px 0 0 #ff9b72; }
+.work-row.is-current-user::after {
+  content: "";
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.34) 0 1px, transparent 1px 8px) top / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, rgba(255,255,255,.2) 0 1px, transparent 1px 10px) bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,255,255,.3) 0 1px, transparent 1px 7px) left / 1px 100% no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,255,255,.16) 0 1px, transparent 1px 9px) right / 1px 100% no-repeat,
+    linear-gradient(90deg, #ff8f6c 0%, #f6c381 24%, #66bdd8 53%, #f0b778 78%, #ff8f6c 100%) top / 100% 3px no-repeat,
+    linear-gradient(90deg, #d66f5f 0%, #7b9fb1 50%, #d66f5f 100%) bottom / 100% 2px no-repeat,
+    linear-gradient(180deg, #ff9a72, #efc17e 46%, #6fc6df 74%, #ff9a72) left / 4px 100% no-repeat,
+    linear-gradient(180deg, #ff9a72, #70bdd6 50%, #efbd7d) right / 2px 100% no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 227, 203, .16), 0 0 18px rgba(255, 132, 95, .1);
+}
+
+.work-row.is-current-user .work-person-cell { box-shadow: none; }
 .work-person-cell small { color: #ffb98e; }
 
-.work-day-heading.is-today {
-  color: #d9ebff;
-  background: transparent;
-  box-shadow: inset 3px 0 0 #70a7ff, inset -3px 0 0 #70a7ff, inset 0 3px 0 #70a7ff;
-}
-
+.work-day-heading.is-today,
 .work-day-cell.is-today {
+  position: relative;
+  color: inherit;
   background: transparent;
-  box-shadow: inset 3px 0 0 #70a7ff, inset -3px 0 0 #70a7ff;
+  box-shadow: none;
 }
 
-.work-row:last-child .work-day-cell.is-today {
-  box-shadow: inset 3px 0 0 #70a7ff, inset -3px 0 0 #70a7ff, inset 0 -3px 0 #70a7ff;
+.work-day-heading.is-today::after,
+.work-day-cell.is-today::after {
+  content: "";
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,.32) 0 1px, transparent 1px 7px) left / 1px 100% no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,255,255,.2) 0 1px, transparent 1px 9px) right / 1px 100% no-repeat,
+    linear-gradient(180deg, #6bcaff 0%, #397da8 28%, #ffb27f 51%, #3f89b2 72%, #76d1ff 100%) left / 3px 100% no-repeat,
+    linear-gradient(180deg, #4fa8da 0%, #8bdcff 34%, #db8c70 53%, #65bce9 100%) right / 3px 100% no-repeat;
+  filter: drop-shadow(0 0 4px rgba(93, 192, 239, .2));
 }
 
-.work-day-cell.is-today > .work-status {
-  background-image: none;
+.work-day-heading.is-today::after {
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.32) 0 1px, transparent 1px 7px) top / 100% 1px no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,255,255,.32) 0 1px, transparent 1px 7px) left / 1px 100% no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,255,255,.2) 0 1px, transparent 1px 9px) right / 1px 100% no-repeat,
+    linear-gradient(90deg, #6bcaff 0%, #8bdcff 32%, #ffb27f 57%, #68c7f8 100%) top / 100% 3px no-repeat,
+    linear-gradient(180deg, #6bcaff 0%, #397da8 28%, #ffb27f 51%, #3f89b2 72%, #76d1ff 100%) left / 3px 100% no-repeat,
+    linear-gradient(180deg, #4fa8da 0%, #8bdcff 34%, #db8c70 53%, #65bce9 100%) right / 3px 100% no-repeat;
+}
+
+.work-row:last-child .work-day-cell.is-today::after {
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.24) 0 1px, transparent 1px 8px) bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,255,255,.32) 0 1px, transparent 1px 7px) left / 1px 100% no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,255,255,.2) 0 1px, transparent 1px 9px) right / 1px 100% no-repeat,
+    linear-gradient(90deg, #4f9dcc 0%, #dd8d70 50%, #68c7f8 100%) bottom / 100% 3px no-repeat,
+    linear-gradient(180deg, #6bcaff 0%, #397da8 28%, #ffb27f 51%, #3f89b2 72%, #76d1ff 100%) left / 3px 100% no-repeat,
+    linear-gradient(180deg, #4fa8da 0%, #8bdcff 34%, #db8c70 53%, #65bce9 100%) right / 3px 100% no-repeat;
 }
 
 .work-status {
@@ -961,6 +1006,18 @@ body {
   color: #ff747d;
   background: linear-gradient(145deg, rgba(211, 62, 75, .3), rgba(124, 34, 47, .2));
   box-shadow: inset 0 0 0 1px rgba(255, 116, 125, .21);
+}
+
+.work-day-cell.is-today > .work-status.is-home {
+  background: linear-gradient(145deg, rgba(48, 143, 211, .28), rgba(21, 76, 122, .17));
+}
+
+.work-day-cell.is-today > .work-status.is-office {
+  background: linear-gradient(145deg, rgba(226, 169, 49, .3), rgba(143, 91, 20, .18));
+}
+
+.work-day-cell.is-today > .work-status.is-holiday {
+  background: linear-gradient(145deg, rgba(211, 62, 75, .3), rgba(124, 34, 47, .2));
 }
 
 button.work-status.is-home {
