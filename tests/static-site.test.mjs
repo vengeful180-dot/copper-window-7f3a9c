@@ -109,13 +109,28 @@ test("calendar and work schedule use dark integrated surfaces instead of white s
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v6/u);
+  assert.match(html, /20260812-emerald-ui-v7/u);
   assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.calendar-day\s*\{[^}]*background:\s*rgba\(255,255,255,\.052\)/u);
   assert.match(styles, /\.work-legend span::before\s*\{/u);
   assert.match(styles, /\.work-status::before\s*\{/u);
   assert.match(styles, /\.work-status\.is-home\s*\{\s*color:/u);
   assert.doesNotMatch(styles, /\.work-status\.is-home\s*\{[^}]*linear-gradient/u);
+});
+
+test("dialogs use dark emerald surfaces and controls instead of white cards", async () => {
+  const [html, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /20260812-emerald-ui-v7/u);
+  assert.match(styles, /\.modal-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
+  assert.match(styles, /\.modal-card input, \.modal-card textarea\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
+  assert.match(styles, /\.date-picker-trigger\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
+  assert.match(styles, /\.date-picker-heading \.icon-button\s*\{[^}]*background:\s*rgba\(255,255,255,\.065\)/u);
+  assert.match(styles, /\.modal-card \.button-primary\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /\.admin-person\s*\{[^}]*background:\s*rgba\(255,255,255,\.055\)/u);
+  assert.match(styles, /html:has\(dialog\[open\]\)\s*\{\s*overflow:\s*hidden/u);
 });
 
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
