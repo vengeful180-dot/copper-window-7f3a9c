@@ -109,7 +109,8 @@ test("homepage uses optimized architectural artwork over a resolution-independen
   assert.match(html, /assets\/images\/dream-team-architecture\.webp/u);
   assert.match(html, /alt="Modern emerald-glass office buildings surrounded by landscaped trees"/u);
   assert.doesNotMatch(styles, /url\("images\/portal-green-background\.webp"\)/u);
-  assert.match(styles, /\.app-shell\s*\{[^}]*repeating-radial-gradient/u);
+  assert.match(styles, /\.app-shell::before\s*\{[^}]*position:\s*fixed[^}]*dream-team-site-background-v2\.webp[^}]*cover no-repeat/u);
+  assert.doesNotMatch(styles, /hero-sheen|\.portal-hero::after\s*\{[^}]*animation:/u);
   assert.match(styles, /\.portal-hero-backdrop\s*\{[^}]*position:\s*absolute[^}]*object-fit:\s*cover/u);
   assert.doesNotMatch(html, /portal-hero-visual/u);
 });
@@ -131,7 +132,7 @@ test("calendar and work schedule use dark integrated surfaces instead of white s
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-profile-mom-v1/u);
+  assert.match(html, /20260812-background-v2/u);
   assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.calendar-day\s*\{[^}]*linear-gradient/u);
   assert.doesNotMatch(html, /class="work-legend"/u);
@@ -145,7 +146,7 @@ test("dialogs use dark emerald surfaces and controls instead of white cards", as
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-profile-mom-v1/u);
+  assert.match(html, /20260812-background-v2/u);
   assert.match(styles, /\.modal-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.modal-card input, \.modal-card textarea\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
   assert.match(styles, /\.date-picker-trigger\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
@@ -160,7 +161,7 @@ test("holiday calendar keeps its layered glass treatment without scroll-flickeri
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-profile-mom-v1/u);
+  assert.match(html, /20260812-background-v2/u);
   assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient\(118deg[^}]*linear-gradient\(145deg/u);
   assert.match(styles, /\.calendar-card::before\s*\{/u);
   assert.match(styles, /\.calendar-card::after\s*\{/u);
@@ -215,7 +216,7 @@ test("holiday ownership controls, current-user accents, and crowded-day disclosu
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="dayHolidaysDialog"/u);
-  assert.match(html, /20260812-profile-mom-v1/u);
+  assert.match(html, /20260812-background-v2/u);
   assert.match(api, /adminCreatePerson:\s*\(body, adminToken\)/u);
   assert.match(app, /function canManageHoliday\(person\)/u);
   assert.match(app, /const editable = canManageHoliday\(person\)/u);
