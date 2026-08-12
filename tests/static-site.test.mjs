@@ -78,6 +78,17 @@ test("homepage editing is visible only during a live Admin session", async () =>
   assert.match(app, /setTimeout\(\(\) => clearAdminSession\(\{ prompt: true \}\), lifetimeMs\)/u);
 });
 
+test("homepage uses optimized generated architectural and green background artwork", async () => {
+  const [html, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /assets\/images\/dream-team-architecture\.webp/u);
+  assert.match(html, /alt="Modern emerald-glass office buildings surrounded by landscaped trees"/u);
+  assert.match(styles, /url\("images\/portal-green-background\.webp"\)/u);
+  assert.match(styles, /\.portal-hero-visual img\s*\{[^}]*object-fit:\s*cover/u);
+});
+
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
   const build = await readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8");
   assert.match(build, /\["index\.html", "robots\.txt", "assets"\]/u);
