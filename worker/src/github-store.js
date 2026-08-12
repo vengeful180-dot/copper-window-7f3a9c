@@ -190,6 +190,35 @@ export class GitHubStore {
     }
   }
 
+  async renameAccount(currentLookup, nextLookup, record) {
+    const validated = validateAccountRecord(record);
+    const current = await this.getAccount(currentLookup, { allowMissing: true });
+    if (!current || current.document.id !== validated.id) throw new GitHubError("The account could not be found.", 404);
+
+    const currentPath = `data/accounts/${currentLookup}.json`;
+    if (currentLookup === nextLookup) {
+      try {
+        return await this.put(currentPath, validated, "Update encrypted planner profile", current.sha);
+      } catch (error) {
+        if (error instanceof GitHubError && error.status === 409) throw new ConflictError(null, "Your profile changed elsewhere. Please try again.");
+        throw error;
+      }
+    }
+
+    const nextPath = `data/accounts/${nextLookup}.json`;
+    if (await this.getAccount(nextLookup, { allowMissing: true })) throw new ConflictError(null, "An account with that name already exists.");
+    let created;
+    try {
+      created = await this.put(nextPath, validated, "Rename encrypted planner account");
+      await this.remove(currentPath, current.sha, "Remove previous encrypted planner account name");
+      return created;
+    } catch (error) {
+      if (created?.sha) await this.remove(nextPath, created.sha, "Roll back incomplete account rename").catch(() => {});
+      if (error instanceof GitHubError && error.status === 409) throw new ConflictError(null, "That account name changed while you were saving. Please try again.");
+      throw error;
+    }
+  }
+
   async deletePerson(id) {
     const path = `data/people/${id}.enc.json`;
     const index = await this.updateIndex((current) => ({ people: current.people.filter((candidate) => candidate !== id) }), "Remove anonymous team member reference");

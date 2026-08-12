@@ -44,6 +44,7 @@ export const api = {
   accountLookup: (name) => request("/api/account/lookup", { method: "POST", body: { name } }),
   accountRegister: (body, siteToken) => request("/api/account/register", { method: "POST", body, siteToken }),
   accountSession: (body) => request("/api/account/session", { method: "POST", body }),
+  accountRename: (body, sessionToken) => request("/api/account/rename", { method: "POST", body, sessionToken }),
   readIndex: (sessionToken) => request("/api/index", { sessionToken }),
   readConfig: (sessionToken) => request("/api/config", { sessionToken }),
   readPresence: (sessionToken) => request("/api/presence", { sessionToken }),

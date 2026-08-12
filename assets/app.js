@@ -1,4 +1,4 @@
-import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-work-admin-v1";
+import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-profile-mom-v1";
 import {
   decryptJson,
   deriveSecrets,
@@ -473,6 +473,7 @@ function clearAdminSession({ prompt = false } = {}) {
   state.adminExpiresAt = 0;
   state.adminExpiryTimer = null;
   $("editHomeButton").hidden = true;
+  $("momEditButton").hidden = true;
   $("adminButton").textContent = "Admin";
   $("adminButton").classList.remove("is-active");
   if (state.unlocked && state.config) {
@@ -493,6 +494,7 @@ function beginAdminSession(token, expiresIn) {
   state.adminToken = token;
   state.adminExpiresAt = Date.now() + lifetimeMs;
   $("editHomeButton").hidden = false;
+  $("momEditButton").hidden = false;
   $("adminButton").textContent = "Admin on";
   $("adminButton").classList.add("is-active");
   if (state.unlocked && state.config) {
@@ -545,9 +547,13 @@ function setProtectedText(node, value, fallback) {
 function setView(requestedView, { updateHash = true } = {}) {
   const view = ["home", "holidays", "work"].includes(requestedView) ? requestedView : "home";
   state.currentView = view;
+  const activePage = view === "home" ? $("homePage") : view === "holidays" ? $("holidaysPage") : $("workPage");
   $("homePage").hidden = view !== "home";
   $("holidaysPage").hidden = view !== "holidays";
   $("workPage").hidden = view !== "work";
+  activePage.classList.remove("is-entering");
+  void activePage.offsetWidth;
+  activePage.classList.add("is-entering");
   for (const [name, id] of [["home", "navHome"], ["holidays", "navHolidays"], ["work", "navWork"]]) {
     const button = $(id);
     const active = name === view;
@@ -567,7 +573,9 @@ function renderHome() {
   const groupName = state.config.groupName;
   $("homeGroupName").textContent = groupName;
   $("headerGroupName").textContent = groupName;
-  setProtectedText($("momValue"), state.config.mom, "No MOM has been added yet. Use Edit homepage when you are ready.");
+  setProtectedText($("momValue"), state.config.mom, "No MOM has been added yet. Open the full notes to see more.");
+  setProtectedText($("momExpandedValue"), state.config.mom, "No meeting notes have been added yet. An Admin can add the full MOM from Edit homepage.");
+  $("momEditButton").hidden = !state.adminToken;
   const links = $("quickLinks");
   links.replaceChildren();
   state.config.links.forEach((link, index) => {
@@ -819,6 +827,91 @@ function sortPeopleForCurrent(people) {
     const secondIsCurrent = isCurrentAccountPerson(second);
     return firstIsCurrent === secondIsCurrent ? first.name.localeCompare(second.name) : firstIsCurrent ? -1 : 1;
   });
+}
+
+function openMom() {
+  renderHome();
+  showDialog($("momDialog"));
+  window.requestAnimationFrame(() => $("momDialog").querySelector("[data-close-dialog]")?.focus());
+}
+
+function openProfile() {
+  if (!state.account) return;
+  $("profileCurrentName").textContent = state.account.displayName;
+  $("profileName").value = state.account.displayName;
+  $("profilePassword").value = "";
+  $("profileMessage").textContent = "";
+  $("profileMessage").classList.remove("success");
+  showDialog($("profileDialog"));
+  window.requestAnimationFrame(() => $("profileName").focus());
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  if (state.busy || !state.account) return;
+  const currentName = state.account.displayName;
+  const newName = normalizeName($("profileName").value);
+  const password = $("profilePassword").value;
+  const message = $("profileMessage");
+  const button = $("saveProfileButton");
+  message.classList.remove("success");
+  message.textContent = "";
+  if (!newName) message.textContent = "Enter a valid name.";
+  else if (password.length < MIN_ACCOUNT_PASSWORD_LENGTH) message.textContent = `Enter your current password of at least ${MIN_ACCOUNT_PASSWORD_LENGTH} characters.`;
+  const currentPerson = state.people.find(isCurrentAccountPerson) ?? null;
+  const duplicate = state.people.find((person) => person.id !== currentPerson?.id && canonicalName(person.name) === canonicalName(newName));
+  if (!message.textContent && duplicate) message.textContent = "That name already belongs to someone on the team.";
+  if (message.textContent) return;
+
+  state.busy = true;
+  setButtonBusy(button, true, "Saving profile…", "Save profile");
+  let accountRenamed = false;
+  const syncWarnings = [];
+  try {
+    const lookup = await api.accountLookup(currentName);
+    const accountSecrets = await deriveSecrets(password, lookup.kdf);
+    const envelope = await encryptJson({ version: 1, accountId: state.account.id, displayName: newName, team: state.teamAccess }, accountSecrets);
+    const response = await api.accountRename({ currentName, newName, verifier: accountSecrets.authToken, envelope }, state.sessionToken);
+    accountRenamed = true;
+    state.account.displayName = response.displayName;
+    state.sessionToken = response.token;
+    state.sessionExpiresAt = Date.now() + Number(response.expiresIn) * 1000;
+    $("signedInName").textContent = response.displayName;
+    $("profileCurrentName").textContent = response.displayName;
+    $("profileName").value = response.displayName;
+    storeSession();
+
+    if (currentPerson && currentPerson.name !== response.displayName) {
+      try {
+        await commitPersonMutation(currentPerson.id, (latest) => ({ ...latest, name: response.displayName }));
+      } catch { syncWarnings.push("holiday name"); }
+    }
+    try {
+      await commitPresenceMutation((latest) => {
+        const member = latest.members.find((candidate) => candidate.accountId === state.account.id);
+        if (member) member.displayName = response.displayName;
+        else latest.members.push({ accountId: state.account.id, displayName: response.displayName, officeDays: [] });
+        return latest;
+      });
+    } catch { syncWarnings.push("work-location name"); }
+
+    renderAll();
+    $("profilePassword").value = "";
+    message.classList.add("success");
+    message.textContent = syncWarnings.length ? `Profile saved. The ${syncWarnings.join(" and ")} will retry when you log in again.` : "Profile saved everywhere.";
+    showToast(syncWarnings.length ? "Profile saved; one team view will resync shortly." : "Your profile has been updated.");
+    window.setTimeout(() => closeDialog($("profileDialog")), syncWarnings.length ? 2600 : 1100);
+  } catch (error) {
+    message.textContent = accountRenamed
+      ? "Your account name was saved, but one team view could not be updated yet. Log in with the new name."
+      : (error instanceof ApiError && error.status === 401
+        ? "Your current password is incorrect."
+        : (error instanceof ApiError ? error.message : "Your profile could not be saved. Please try again."));
+    $("profilePassword").select();
+  } finally {
+    state.busy = false;
+    setButtonBusy(button, false, "Saving profile…", "Save profile");
+  }
 }
 
 function canManageHoliday(person) {
@@ -1449,6 +1542,10 @@ function bindEvents() {
   $("navWork").addEventListener("click", () => setView("work"));
   $("homeHolidaysButton").addEventListener("click", () => setView("holidays"));
   $("homeWorkButton").addEventListener("click", () => setView("work"));
+  $("momCardButton").addEventListener("click", openMom);
+  $("momEditButton").addEventListener("click", () => { closeDialog($("momDialog")); openAdmin(); });
+  $("profileButton").addEventListener("click", openProfile);
+  $("profileForm").addEventListener("submit", saveProfile);
   $("editHomeButton").addEventListener("click", openAdmin);
   $("lockButton").addEventListener("click", lockPlanner);
   $("addHolidayButton").addEventListener("click", openAddHoliday);

@@ -74,6 +74,35 @@ test("account creation succeeds while the new branch commit is not yet visible t
   assert.equal(accountReads, 1);
 });
 
+test("account rename atomically moves the opaque account record", async () => {
+  const currentLookup = "A".repeat(43);
+  const nextLookup = "C".repeat(43);
+  const currentPath = `data/accounts/${currentLookup}.json`;
+  const nextPath = `data/accounts/${nextLookup}.json`;
+  const original = accountRecord();
+  const replacement = { ...accountRecord(), wrappedEnvelope: { version: 1, cipher: { name: "AES-GCM", iv: "BBBBBBBBBBBBBBBB", data: "BBBBBBBBBBBBBBBBBBBBBB" } } };
+  const github = new MockGitHub({ [currentPath]: original });
+  const store = new GitHubStore(env, github.fetch);
+
+  await store.renameAccount(currentLookup, nextLookup, replacement);
+
+  assert.equal(github.files.has(currentPath), false);
+  assert.deepEqual(github.files.get(nextPath).document, replacement);
+});
+
+test("account rename refuses to overwrite an existing opaque account", async () => {
+  const currentLookup = "A".repeat(43);
+  const nextLookup = "C".repeat(43);
+  const currentPath = `data/accounts/${currentLookup}.json`;
+  const nextPath = `data/accounts/${nextLookup}.json`;
+  const github = new MockGitHub({ [currentPath]: accountRecord(), [nextPath]: { ...accountRecord(), id: concurrentId } });
+  const store = new GitHubStore(env, github.fetch);
+
+  await assert.rejects(() => store.renameAccount(currentLookup, nextLookup, accountRecord()), ConflictError);
+  assert.equal(github.files.has(currentPath), true);
+  assert.equal(github.files.get(nextPath).document.id, concurrentId);
+});
+
 test("encrypted updates succeed while the branch GET still returns the previous commit", async () => {
   const path = `data/people/${firstId}.enc.json`;
   const original = { version: 1, ciphertext: "before" };

@@ -86,6 +86,20 @@ export function validateAccountLoginBody(body) {
   return { ...validateAccountName(body.name), verifier: validateVerifier(body.verifier, "login proof") };
 }
 
+export function validateAccountRenameBody(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new InputError("Invalid request body.");
+  const current = validateAccountName(body.currentName);
+  const next = validateAccountName(body.newName);
+  return {
+    currentDisplayName: current.displayName,
+    currentCanonicalName: current.canonicalName,
+    newDisplayName: next.displayName,
+    newCanonicalName: next.canonicalName,
+    verifier: validateVerifier(body.verifier, "login proof"),
+    envelope: validateEncryptedDocument(body.envelope),
+  };
+}
+
 export function validateWrappedAccountEnvelope(wrapped) {
   if (!wrapped || typeof wrapped !== "object" || Array.isArray(wrapped) || wrapped.version !== 1) throw new InputError("The account record is invalid.", 502);
   if (Object.keys(wrapped).sort().join(",") !== "cipher,version") throw new InputError("The account record is invalid.", 502);

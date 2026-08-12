@@ -22,6 +22,7 @@ import {
   readJsonBody,
   validateAccountLoginBody,
   validateAccountLookupBody,
+  validateAccountRenameBody,
   validateAccountRegistrationBody,
   validateCreatePersonBody,
   validateEncryptedWriteBody,
@@ -149,6 +150,35 @@ export function createWorker(fetchImpl = fetch) {
             expiresIn: 8 * 60 * 60,
             accountId: account.document.id,
             envelope: await unwrapAccountEnvelope(account.document.wrappedEnvelope, env),
+          });
+        }
+
+        if (request.method === "POST" && url.pathname === "/api/account/rename") {
+          const rate = checkAccountRate(request);
+          if (!rate.allowed) return json(request, env, { error: "Too many attempts. Try again later." }, 429, { "Retry-After": String(rate.retryAfter) });
+          const session = await requireAccount(request, env);
+          const body = validateAccountRenameBody(await readJsonBody(request));
+          const currentLookup = await accountLookupId(body.currentCanonicalName, env);
+          const nextLookup = await accountLookupId(body.newCanonicalName, env);
+          const accountStore = store();
+          const account = await accountStore.getAccount(currentLookup, { allowMissing: true });
+          const verifierHash = account?.document.verifierHash ?? await fakeAccountVerifierHash(body.currentCanonicalName, env);
+          const authorized = await verifyAccountVerifier(body.verifier, verifierHash, env);
+          if (!account || !authorized || account.document.id !== session.accountId) return json(request, env, { error: "Your current password is incorrect." }, 401);
+          const expectedKdf = account.document.kdf;
+          const suppliedKdf = body.envelope.kdf;
+          if (expectedKdf.name !== suppliedKdf.name || expectedKdf.hash !== suppliedKdf.hash || expectedKdf.iterations !== suppliedKdf.iterations || expectedKdf.salt !== suppliedKdf.salt) {
+            throw new InputError("Account encryption settings do not match.");
+          }
+          await accountStore.renameAccount(currentLookup, nextLookup, {
+            ...account.document,
+            wrappedEnvelope: await wrapAccountEnvelope(body.envelope, env),
+          });
+          return json(request, env, {
+            token: await createAccountToken(env, account.document.id),
+            expiresIn: 8 * 60 * 60,
+            accountId: account.document.id,
+            displayName: body.newDisplayName,
           });
         }
 

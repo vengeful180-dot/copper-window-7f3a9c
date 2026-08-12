@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#063326">
     <title>Team Time Away</title>
     <link rel="preload" as="image" href="assets/images/dream-team-architecture.webp" type="image/webp">
-    <link rel="stylesheet" href="assets/styles.css?v=20260812-work-grid-v2">
+    <link rel="stylesheet" href="assets/styles.css?v=20260812-profile-mom-v1">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -63,7 +63,7 @@
           <button id="navWork" class="nav-button" type="button">Work location</button>
         </nav>
         <div class="header-actions">
-          <div class="account-chip" aria-label="Signed-in account"><span class="account-avatar" aria-hidden="true"></span><span id="signedInName"></span></div>
+          <button id="profileButton" class="account-chip" type="button" aria-label="Open your profile" aria-haspopup="dialog" aria-controls="profileDialog"><span class="account-avatar" aria-hidden="true"></span><span id="signedInName" class="account-name"></span><span class="profile-chevron" aria-hidden="true">&rsaquo;</span></button>
           <button id="adminButton" class="button button-quiet" type="button">Admin</button>
           <button id="lockButton" class="button button-quiet" type="button">Log out</button>
           <button id="addHolidayButton" class="button button-primary" type="button"><span aria-hidden="true">+</span> Add holiday</button>
@@ -80,7 +80,6 @@
               <p class="eyebrow">Your team, in rhythm</p>
               <h1 id="homeTitle"><span id="homeGroupName">Dream Team</span>, moving in sync.</h1>
               <p>Plan time away, choose where you are working, and keep every team shortcut within reach.</p>
-              <div class="portal-hero-meta" aria-label="Workspace tools"><span>Holiday planning</span><span>Work rhythm</span><span>Team links</span></div>
               <button id="editHomeButton" class="button button-secondary" type="button" hidden>Edit homepage</button>
             </div>
           </div>
@@ -92,9 +91,10 @@
             <button id="homeWorkButton" class="portal-action-card work-action" type="button">
               <span class="action-icon" aria-hidden="true">02</span><span><small>Two-week team view</small><strong>Work location</strong><em>Set home or office and stay aligned</em></span><span class="action-arrow" aria-hidden="true">&rarr;</span>
             </button>
-            <article class="mom-card">
-              <div><p class="eyebrow">MOM</p><h2>Meeting notes</h2></div><p id="momValue" class="mom-copy empty-copy"></p>
-            </article>
+            <button id="momCardButton" class="mom-card" type="button" aria-haspopup="dialog" aria-controls="momDialog">
+              <span class="mom-card-copy"><span class="eyebrow">MOM</span><span class="mom-title">Meeting notes</span><span id="momValue" class="mom-copy empty-copy"></span></span>
+              <span class="mom-card-cta"><span>Open full notes</span><span class="mom-card-arrow" aria-hidden="true">&nearr;</span></span>
+            </button>
             <section class="quick-links-card" aria-labelledby="quickLinksTitle">
               <div class="section-heading"><div><p class="eyebrow">One click away</p><h2 id="quickLinksTitle">Team shortcuts</h2></div><span>6 editable spaces</span></div>
               <div id="quickLinks" class="quick-links"></div>
@@ -121,7 +121,7 @@
         </section>
 
         <section id="workPage" class="page-view work-page" aria-labelledby="workTitle" hidden>
-          <div class="page-heading"><div><p class="eyebrow">Two-week team rhythm</p><h1 id="workTitle">Where we work, together.</h1><p>See everyone at a glance, switch your own days between home and office, and let holidays appear automatically.</p></div><div class="work-legend" aria-label="Schedule legend"><span class="legend-home">Home</span><span class="legend-office">Office</span><span class="legend-holiday">Holiday</span></div></div>
+          <h1 id="workTitle" class="visually-hidden">Work location</h1>
           <div id="workSchedule" class="work-schedule"></div>
           <p id="workMessage" class="form-message work-message" role="status"></p>
         </section>
@@ -149,6 +149,26 @@
         <div id="dayHolidaysList" class="day-holidays-list"></div>
         <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="dayHolidaysDialog">Close</button></div>
       </section>
+    </dialog>
+
+    <dialog id="momDialog" class="modal mom-modal" aria-labelledby="momDialogTitle">
+      <section class="modal-card mom-viewer-card">
+        <span class="mom-viewer-orbit orbit-one" aria-hidden="true"></span><span class="mom-viewer-orbit orbit-two" aria-hidden="true"></span>
+        <div class="modal-heading mom-viewer-heading"><div><p class="eyebrow">Minutes of meeting</p><h2 id="momDialogTitle">Meeting notes</h2><p>Decisions, context, and the details worth keeping.</p></div><button class="icon-button modal-close" type="button" data-close-dialog="momDialog" aria-label="Close">&times;</button></div>
+        <div class="mom-viewer-content"><span class="mom-quote-mark" aria-hidden="true">&ldquo;</span><p id="momExpandedValue" class="mom-expanded-copy"></p></div>
+        <div class="modal-actions"><button id="momEditButton" class="button button-secondary" type="button" hidden>Edit MOM</button><span class="action-spacer"></span><button class="button button-primary" type="button" data-close-dialog="momDialog">Done</button></div>
+      </section>
+    </dialog>
+
+    <dialog id="profileDialog" class="modal profile-modal" aria-labelledby="profileDialogTitle">
+      <form id="profileForm" class="modal-card profile-card" method="dialog" novalidate>
+        <div class="modal-heading"><div><p class="eyebrow">Your account</p><h2 id="profileDialogTitle">Personal profile</h2><p class="profile-intro">Choose how your name appears everywhere in Dream Team.</p></div><button class="icon-button modal-close" type="button" data-close-dialog="profileDialog" aria-label="Close">&times;</button></div>
+        <div class="profile-identity"><span class="profile-avatar-large" aria-hidden="true"><span></span></span><div><strong id="profileCurrentName"></strong><span>Private encrypted account</span></div></div>
+        <div class="field"><label for="profileName">Display and login name</label><input id="profileName" name="name" type="text" autocomplete="name" maxlength="80" required><p class="field-hint">After saving, use this new name the next time you log in.</p></div>
+        <div class="field"><label for="profilePassword">Current personal password</label><input id="profilePassword" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="256" required><p class="field-hint">Required to securely move your encrypted account. Your password is never stored.</p></div>
+        <p id="profileMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="profileDialog">Cancel</button><button id="saveProfileButton" class="button button-primary" type="submit">Save profile</button></div>
+      </form>
     </dialog>
 
     <dialog id="datePickerDialog" class="modal date-picker-modal">
@@ -195,6 +215,6 @@
     </dialog>
 
     <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="assets/app.js?v=20260812-work-admin-v1"></script>
+    <script type="module" src="assets/app.js?v=20260812-profile-mom-v1"></script>
   </body>
 </html>

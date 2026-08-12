@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { deriveSecrets, encryptJson, exportTeamAccess, makeKdf } from "../assets/crypto.js";
+import { decryptJson, deriveSecrets, encryptJson, exportTeamAccess, makeKdf } from "../assets/crypto.js";
 import { accountLookupId, accountVerifierHash, authorizeAccount, createAccountToken, resetRateLimitsForTests } from "../worker/src/auth.js";
 import { digestDocument } from "../worker/src/github-store.js";
 import { createWorker } from "../worker/src/index.js";
@@ -297,6 +297,45 @@ test("account registration stores no name or reusable password verifier and supp
   const read = await worker.fetch(jsonRequest("/api/index", { method: "GET", authorization: `Session ${session.token}` }), env);
   assert.equal(read.status, 200);
   assert.deepEqual((await read.json()).file.document, { people: [] });
+});
+
+test("a signed-in account can securely change its display and login name", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const accountId = "66666666-6666-4666-8666-666666666666";
+  const oldName = "Original Person";
+  const newName = "Renamed Person";
+  const accountSecrets = await deriveSecrets("personal-password-for-tests", makeKdf());
+  const teamSecrets = await deriveSecrets("team-password", makeKdf());
+  const team = exportTeamAccess(teamSecrets);
+  const envelope = await encryptJson({ version: 1, accountId, displayName: oldName, team }, accountSecrets);
+  const github = new MockGitHub({ "data/index.json": { people: [] } });
+  const worker = createWorker(github.fetch);
+  const registration = await worker.fetch(jsonRequest("/api/account/register", {
+    body: { id: accountId, name: oldName, kdf: accountSecrets.kdf, verifier: accountSecrets.authToken, envelope },
+    authorization: "Bearer site-test-token",
+    ip: "203.0.113.60",
+  }), env);
+  const registered = await registration.json();
+  const renamedEnvelope = await encryptJson({ version: 1, accountId, displayName: newName, team }, accountSecrets);
+  const rename = await worker.fetch(jsonRequest("/api/account/rename", {
+    body: { currentName: oldName, newName, verifier: accountSecrets.authToken, envelope: renamedEnvelope },
+    authorization: `Session ${registered.token}`,
+    ip: "203.0.113.61",
+  }), env);
+  assert.equal(rename.status, 200);
+  const renamed = await rename.json();
+  assert.equal(renamed.displayName, newName);
+  assert.match(renamed.token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
+  assert.equal(github.files.has(`data/accounts/${await accountLookupId("original person", env)}.json`), false);
+  assert.equal(github.files.has(`data/accounts/${await accountLookupId("renamed person", env)}.json`), true);
+
+  const oldLogin = await worker.fetch(jsonRequest("/api/account/session", { body: { name: oldName, verifier: accountSecrets.authToken }, ip: "203.0.113.62" }), env);
+  assert.equal(oldLogin.status, 401);
+  const newLogin = await worker.fetch(jsonRequest("/api/account/session", { body: { name: newName, verifier: accountSecrets.authToken }, ip: "203.0.113.63" }), env);
+  assert.equal(newLogin.status, 200);
+  const loggedIn = await newLogin.json();
+  assert.equal((await decryptJson(loggedIn.envelope, accountSecrets)).displayName, newName);
 });
 
 test("account lookup and login attempts are rate limited", async () => {
