@@ -20,6 +20,7 @@ import {
   mergeConfigChanges,
   nextWorkingDayIso,
   normalizeName,
+  parseIsoDate,
   peopleAwayBetween,
   peopleAwayOn,
   personHue,
@@ -48,6 +49,8 @@ const state = {
   adminToken: null,
   adminConfigBase: null,
   overlapConfirmation: null,
+  datePickerTarget: null,
+  datePickerMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   busy: false,
 };
 
@@ -71,6 +74,91 @@ function friendlyDate(iso, options = { day: "numeric", month: "short" }) {
 
 function fullFriendlyDate(iso) {
   return friendlyDate(iso, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function setHolidayDate(inputId, iso, notify = true) {
+  const input = $(inputId);
+  const display = $(`${inputId}Display`);
+  const trigger = $(`${inputId}Button`);
+  input.value = iso || "";
+  display.textContent = iso ? fullFriendlyDate(iso) : "Choose a date";
+  trigger.classList.toggle("is-placeholder", !iso);
+  if (notify) input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function datePickerFocusDay() {
+  const grid = $("datePickerGrid");
+  const preferred = grid.querySelector(".date-picker-day.is-selected:not(:disabled)")
+    ?? grid.querySelector(".date-picker-day.is-today:not(:disabled)")
+    ?? grid.querySelector(".date-picker-day:not(:disabled)");
+  preferred?.focus();
+}
+
+function renderDatePicker() {
+  const year = state.datePickerMonth.getFullYear();
+  const month = state.datePickerMonth.getMonth();
+  const selected = state.datePickerTarget ? $(state.datePickerTarget).value : "";
+  $("datePickerTitle").textContent = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(state.datePickerMonth);
+  const grid = $("datePickerGrid");
+  grid.replaceChildren();
+  for (const cell of monthCells(year, month)) {
+    const weekend = isWeekendIso(cell.iso);
+    const day = makeElement("button", "date-picker-day", String(cell.date.getDate()));
+    day.type = "button";
+    day.dataset.iso = cell.iso;
+    day.disabled = weekend;
+    day.setAttribute("aria-label", `${friendlyDate(cell.iso, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}${weekend ? ", unavailable" : ""}`);
+    if (!cell.currentMonth) day.classList.add("outside-month");
+    if (cell.iso === selected) {
+      day.classList.add("is-selected");
+      day.setAttribute("aria-pressed", "true");
+    }
+    if (cell.iso === todayIso()) day.classList.add("is-today");
+    if (!weekend) day.addEventListener("click", () => selectDatePickerDay(cell.iso));
+    grid.append(day);
+  }
+}
+
+function openDatePicker(inputId) {
+  if (!["holidayStart", "holidayEnd"].includes(inputId)) return;
+  state.datePickerTarget = inputId;
+  const selected = parseIsoDate($(inputId).value) ?? parseIsoDate(nextWorkingDayIso(todayIso()));
+  state.datePickerMonth = new Date(selected.getUTCFullYear(), selected.getUTCMonth(), 1);
+  $("datePickerFieldLabel").textContent = inputId === "holidayStart" ? "Choose start date" : "Choose end date";
+  renderDatePicker();
+  showDialog($("datePickerDialog"));
+  window.requestAnimationFrame(datePickerFocusDay);
+}
+
+function closeDatePicker() {
+  const target = state.datePickerTarget;
+  closeDialog($("datePickerDialog"));
+  state.datePickerTarget = null;
+  if (target) $(`${target}Button`).focus();
+}
+
+function selectDatePickerDay(iso) {
+  if (!state.datePickerTarget || isWeekendIso(iso)) return;
+  setHolidayDate(state.datePickerTarget, iso);
+  closeDatePicker();
+}
+
+function changeDatePickerMonth(offset) {
+  state.datePickerMonth = new Date(state.datePickerMonth.getFullYear(), state.datePickerMonth.getMonth() + offset, 1);
+  renderDatePicker();
+  window.requestAnimationFrame(datePickerFocusDay);
+}
+
+function handleDatePickerKeys(event) {
+  const current = event.target.closest(".date-picker-day");
+  if (!current) return;
+  const movement = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
+  if (!movement) return;
+  event.preventDefault();
+  const days = [...$("datePickerGrid").querySelectorAll(".date-picker-day")];
+  let index = days.indexOf(current) + movement;
+  while (days[index]?.disabled) index += Math.sign(movement);
+  days[index]?.focus();
 }
 
 function holidayLabel(holiday) {
@@ -547,8 +635,8 @@ function openAddHoliday() {
   $("employeeName").readOnly = false;
   $("employeeName").value = state.account?.displayName ?? "";
   const initialDate = nextWorkingDayIso(todayIso()) ?? todayIso();
-  $("holidayStart").value = initialDate;
-  $("holidayEnd").value = initialDate;
+  setHolidayDate("holidayStart", initialDate, false);
+  setHolidayDate("holidayEnd", initialDate, false);
   $("holidayModalEyebrow").textContent = "New time away";
   $("holidayModalTitle").textContent = "Add holiday";
   $("deleteHolidayButton").hidden = true;
@@ -567,8 +655,8 @@ function openHolidayEditor(personId, holidayId) {
   $("editHolidayId").value = holidayId;
   $("employeeName").value = person.name;
   $("employeeName").readOnly = true;
-  $("holidayStart").value = holiday.start;
-  $("holidayEnd").value = holiday.end;
+  setHolidayDate("holidayStart", holiday.start, false);
+  setHolidayDate("holidayEnd", holiday.end, false);
   $("holidayModalEyebrow").textContent = "Adjust time away";
   $("holidayModalTitle").textContent = "Edit holiday";
   $("deleteHolidayButton").hidden = false;
@@ -952,6 +1040,13 @@ function bindEvents() {
   $("addHolidayButton").addEventListener("click", openAddHoliday);
   $("emptyAddButton").addEventListener("click", openAddHoliday);
   $("holidayForm").addEventListener("submit", saveHoliday);
+  $("holidayStartButton").addEventListener("click", () => openDatePicker("holidayStart"));
+  $("holidayEndButton").addEventListener("click", () => openDatePicker("holidayEnd"));
+  $("datePickerPrevious").addEventListener("click", () => changeDatePickerMonth(-1));
+  $("datePickerNext").addEventListener("click", () => changeDatePickerMonth(1));
+  $("datePickerCancel").addEventListener("click", closeDatePicker);
+  $("datePickerGrid").addEventListener("keydown", handleDatePickerKeys);
+  $("datePickerDialog").addEventListener("cancel", (event) => { event.preventDefault(); closeDatePicker(); });
   $("deleteHolidayButton").addEventListener("click", deleteHoliday);
   for (const id of ["employeeName", "holidayStart", "holidayEnd"]) $(id).addEventListener("input", resetOverlapConfirmation);
   $("adminButton").addEventListener("click", openAdmin);

@@ -20,6 +20,20 @@ test("frontend never uses persistent local storage or unsafe HTML insertion", as
   assert.doesNotMatch(sessionFields, /password|people|config/iu);
 });
 
+test("holiday fields use a weekday-only calendar instead of the native date picker", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="holidayStart"[^>]*type="hidden"/u);
+  assert.match(html, /id="holidayEnd"[^>]*type="hidden"/u);
+  assert.match(html, /id="holidayStartButton"[^>]*aria-controls="datePickerDialog"/u);
+  assert.match(html, /id="datePickerDialog"/u);
+  assert.doesNotMatch(html, /id="holiday(?:Start|End)"[^>]*type="date"/u);
+  assert.match(app, /day\.disabled\s*=\s*weekend/u);
+  assert.match(app, /if \(!weekend\) day\.addEventListener/u);
+});
+
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
   const build = await readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8");
   assert.match(build, /\["index\.html", "robots\.txt", "assets"\]/u);

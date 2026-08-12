@@ -4,7 +4,7 @@ A small-team holiday planner whose public GitHub repository contains only anonym
 
 The repository starts with **zero people**. The first holiday entered for a normalized name creates a UUID person record automatically; later capitalization or whitespace variations reuse that record.
 
-Saturday and Sunday are treated as non-working days. Holiday start and end dates must be weekdays; a range may pass over a weekend, but weekend cells are never marked as time away.
+Saturday and Sunday are treated as non-working days. The in-app date picker disables weekend buttons, holiday start and end dates must be weekdays, and a range may pass over a weekend without marking weekend cells as time away.
 
 ## Architecture
 
