@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      worker_api_url:
+        description: Secure Worker URL supplied by the Worker deployment
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -29,7 +34,7 @@ jobs:
       - run: npm ci
       - run: npm run check
         env:
-          WORKER_API_URL: ${{ vars.WORKER_API_URL }}
+          WORKER_API_URL: ${{ inputs.worker_api_url || vars.WORKER_API_URL }}
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

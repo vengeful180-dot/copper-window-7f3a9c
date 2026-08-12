@@ -71,7 +71,7 @@ npm run check
 4. Create a Cloudflare API token limited to the target account with **Workers Scripts: Edit**. Store `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub repository secrets.
 5. Copy the generated verifier values from `.dev.vars` into GitHub secrets: `SITE_AUTH_TOKEN_HASH`, `ADMIN_PASSWORD_HASH`, `ADMIN_PASSWORD_SALT`, and `ADMIN_SESSION_SECRET`.
 6. Add repository variable `PAGES_ORIGIN` as the origin only, such as `https://owner.github.io` (no repository path). Run **Deploy secure write gateway** once.
-7. The Worker workflow verifies `/health`, stores the resulting `https://…workers.dev` URL as `WORKER_API_URL`, and dispatches a fresh Pages deployment automatically. The frontend build also points protected reads at the raw `main/data/` path for the current repository.
+7. The Worker workflow verifies `/health`, passes the resulting `https://…workers.dev` URL directly to a fresh Pages deployment, and connects the frontend automatically. Also store that stable URL as the repository variable `WORKER_API_URL` so later `main` pushes retain the connection. The frontend build points protected reads at the raw `main/data/` path for the current repository.
 
 The Worker workflow uploads secrets after the initial script deployment; until that finishes, write routes fail closed. The frontend displays a clear read-only message when `WORKER_API_URL` is unset or unavailable.
 

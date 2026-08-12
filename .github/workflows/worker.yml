@@ -66,5 +66,4 @@ jobs:
             fi
             sleep 2
           done
-          gh variable set WORKER_API_URL --repo "$GITHUB_REPOSITORY" --body "$worker_url"
-          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
+          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main -f worker_api_url="$worker_url"
