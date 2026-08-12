@@ -104,6 +104,20 @@ test("emerald art direction replaces flat homepage and work surfaces", async () 
   assert.match(styles, /@media \(min-width: 1181px\) and \(max-height: 1100px\)/u);
 });
 
+test("calendar and work schedule use dark integrated surfaces instead of white sheets and pills", async () => {
+  const [html, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /20260812-emerald-ui-v6/u);
+  assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
+  assert.match(styles, /\.calendar-day\s*\{[^}]*background:\s*rgba\(255,255,255,\.052\)/u);
+  assert.match(styles, /\.work-legend span::before\s*\{/u);
+  assert.match(styles, /\.work-status::before\s*\{/u);
+  assert.match(styles, /\.work-status\.is-home\s*\{\s*color:/u);
+  assert.doesNotMatch(styles, /\.work-status\.is-home\s*\{[^}]*linear-gradient/u);
+});
+
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
   const build = await readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8");
   assert.match(build, /\["index\.html", "robots\.txt", "assets"\]/u);
