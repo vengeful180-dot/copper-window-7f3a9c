@@ -305,7 +305,24 @@ body {
   background: linear-gradient(145deg, #45d0aa, #7ba8ff 56%, #ff9b72);
 }
 
-.profile-chevron { color: #ffb88e; }
+.profile-chevron {
+  flex: 0 0 21px;
+  width: 21px;
+  height: 28px;
+  border: 0;
+  border-radius: 0;
+  background: url("images/profile-forward-gem-v1.png") center / contain no-repeat;
+  color: transparent;
+  font-size: 0;
+  filter: drop-shadow(0 4px 8px rgba(0, 7, 18, .42));
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), filter 220ms ease;
+}
+
+.account-chip:hover .profile-chevron {
+  background: url("images/profile-forward-gem-v1.png") center / contain no-repeat;
+  transform: translateX(3px) scale(1.08) rotate(2deg);
+  filter: drop-shadow(0 5px 10px rgba(51, 213, 186, .24)) drop-shadow(0 2px 5px rgba(255, 145, 108, .28));
+}
 
 .app-nav {
   gap: 3px;
@@ -431,11 +448,30 @@ body {
 .portal-action-card small { color: rgba(233,245,245,.66); }
 .portal-action-card em { color: rgba(236,245,245,.67); }
 
-.action-arrow,
 .mom-card-arrow {
   border-color: rgba(255,255,255,.17);
   background: rgba(255,255,255,.08);
   color: #fff;
+}
+
+.action-arrow {
+  flex: 0 0 68px;
+  width: 68px;
+  height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: url("images/action-forward-gem-v1.png") center / contain no-repeat;
+  color: transparent;
+  font-size: 0;
+  filter: drop-shadow(0 9px 14px rgba(0, 7, 18, .42));
+  transition: transform 240ms cubic-bezier(.2,.8,.2,1), filter 240ms ease;
+}
+
+.portal-action-card:hover .action-arrow {
+  border: 0;
+  background: url("images/action-forward-gem-v1.png") center / contain no-repeat;
+  transform: translateX(5px) translateY(-2px) scale(1.06) rotate(-1deg);
+  filter: drop-shadow(0 12px 18px rgba(0, 8, 19, .5)) drop-shadow(0 0 11px rgba(75, 211, 188, .2));
 }
 
 .mom-card {
@@ -522,40 +558,25 @@ body {
   color: #ffc098;
 }
 
-/* Editorial index markers: quiet metadata instead of generic status pills. */
+/* Plain metadata: no pills, frames, rails, or decorative counter shapes. */
 .count-badge {
-  position: relative;
-  min-width: 38px;
+  min-width: 0;
   height: auto;
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  padding: 0 0 5px 10px;
+  display: inline;
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: #9fc5c4;
-  font-size: 1.1rem;
-  font-weight: 690;
+  color: #91aaac;
+  font-size: .68rem;
+  font-weight: 760;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -.045em;
+  letter-spacing: .04em;
   line-height: 1;
 }
 
-.count-badge::before {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 28px;
-  height: 2px;
-  background: linear-gradient(90deg, #49d0ab, rgba(112,167,255,.35));
-}
-
-.spotlight-card .count-badge::before {
-  background: linear-gradient(90deg, #ff9b72, rgba(244,190,114,.4));
-}
+.count-badge::before { content: none; }
 
 .holidays-page .summary-card .person-row {
   border: 1px solid rgba(177, 218, 211, .07);
@@ -699,54 +720,42 @@ body {
 .work-week-heading span { color: #819b9e; }
 
 .work-week-heading .work-member-count {
-  min-width: 82px;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: end;
-  gap: 8px;
-  position: relative;
-  padding: 0 0 8px 12px;
+  min-width: 108px;
+  min-height: 0;
+  display: flex;
+  align-self: center;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
   border: 0;
-  border-left: 1px solid rgba(112, 167, 255, .34);
   border-radius: 0;
   background: transparent;
-  color: #a9c7ff;
-}
-
-.work-week-heading .work-member-count::after {
-  content: "";
-  position: absolute;
-  left: -1px;
-  bottom: 0;
-  width: 48px;
-  height: 2px;
-  background: linear-gradient(90deg, #70a7ff, transparent);
+  color: #91aaac;
+  text-align: center;
 }
 
 .work-week-card:nth-child(2) .work-member-count {
-  border-left-color: rgba(255, 155, 114, .38);
-  color: #ffc09a;
-}
-
-.work-week-card:nth-child(2) .work-member-count::after {
-  background: linear-gradient(90deg, #ff9b72, transparent);
+  color: #b9a19b;
 }
 
 .work-week-heading .work-member-count strong {
-  color: currentColor;
-  font-size: 1.7rem;
-  font-weight: 660;
+  color: #a9c7ff;
+  font-size: 1.12rem;
+  font-weight: 720;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -.075em;
-  line-height: .84;
+  letter-spacing: -.04em;
+  line-height: 1;
 }
 
+.work-week-card:nth-child(2) .work-member-count strong { color: #ffc09a; }
+
 .work-week-heading .work-member-count small {
-  margin: 0 0 1px;
-  color: #7f999c;
+  margin: 0;
+  color: currentColor;
   font-size: .54rem;
   font-weight: 760;
-  letter-spacing: .14em;
+  letter-spacing: .11em;
   line-height: 1;
   text-transform: uppercase;
 }

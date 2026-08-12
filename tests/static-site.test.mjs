@@ -50,24 +50,33 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
-  assert.match(html, /assets\/design-v3\.css\?v=20260812-editorial-index-v1/u);
+  assert.match(html, /assets\/design-v3\.css\?v=20260812-imagen-controls-v1/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
 
-test("team totals use editorial index rails instead of generic rounded badges", async () => {
+test("team totals are plain metadata without generic or decorative counter shapes", async () => {
   const [html, app, design] = await Promise.all([
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /assets\/app\.js\?v=20260812-editorial-index-v1/u);
-  assert.match(app, /memberIndex\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
+  assert.match(html, /assets\/app\.js\?v=20260812-imagen-controls-v1/u);
+  assert.match(app, /memberCount\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
   assert.match(design, /\.count-badge\s*\{[\s\S]*?border-radius:\s*0/u);
-  assert.match(design, /\.count-badge::before\s*\{[\s\S]*?height:\s*2px/u);
-  assert.match(design, /\.work-week-heading \.work-member-count\s*\{[\s\S]*?border-left:/u);
+  assert.match(design, /\.count-badge::before\s*\{\s*content:\s*none/u);
+  assert.match(design, /\.work-week-heading \.work-member-count\s*\{[\s\S]*?justify-content:\s*center[\s\S]*?border:\s*0/u);
   assert.match(design, /\.work-week-heading \.work-member-count strong\s*\{/u);
+  assert.doesNotMatch(design, /\.work-week-heading \.work-member-count::after/u);
   assert.doesNotMatch(design, /\.work-week-heading \.work-member-count\s*\{[^}]*border-radius:\s*999px/u);
+});
+
+test("custom Imagen controls replace generic circular arrows", async () => {
+  const design = await readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8");
+  assert.match(design, /\.profile-chevron\s*\{[\s\S]*?profile-forward-gem-v1\.png[\s\S]*?border-radius:\s*0/u);
+  assert.match(design, /\.action-arrow\s*\{[\s\S]*?action-forward-gem-v1\.png[\s\S]*?border-radius:\s*0/u);
+  assert.match(design, /\.account-chip:hover \.profile-chevron\s*\{[\s\S]*?profile-forward-gem-v1\.png/u);
+  assert.match(design, /\.portal-action-card:hover \.action-arrow\s*\{[\s\S]*?action-forward-gem-v1\.png/u);
 });
 
 test("header navigation stays truly centered and stable between pages", async () => {
