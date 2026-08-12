@@ -17,6 +17,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Verify protected data repository access
+        shell: bash
+        env:
+          PLANNER_DATA_TOKEN: ${{ secrets.PLANNER_DATA_TOKEN }}
+        run: |
+          repository="$(curl --fail --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $PLANNER_DATA_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY")"
+          jq -e '.permissions.push == true' <<< "$repository" > /dev/null
+          curl --fail --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $PLANNER_DATA_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/data/index.json?ref=main" > /dev/null
       - name: Deploy Worker
         shell: bash
         run: npx wrangler deploy --config worker/wrangler.toml | tee worker-deploy.log
