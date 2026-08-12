@@ -38,6 +38,7 @@ import {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MIN_ACCOUNT_PASSWORD_LENGTH = 8;
+const MIN_TEAM_INVITE_PASSWORD_LENGTH = 7;
 const SESSION_KEY = "quiet-leave-account-session-v1";
 const $ = (id) => document.getElementById(id);
 const state = {
@@ -397,7 +398,7 @@ async function createAccount(event) {
   if (!name) message.textContent = "Enter your full name.";
   else if (password.length < MIN_ACCOUNT_PASSWORD_LENGTH) message.textContent = `Choose a password with at least ${MIN_ACCOUNT_PASSWORD_LENGTH} characters.`;
   else if (password !== confirmation) message.textContent = "The two personal passwords do not match.";
-  else if (!teamPassword) message.textContent = "Enter the team invite password.";
+  else if (teamPassword.length < MIN_TEAM_INVITE_PASSWORD_LENGTH) message.textContent = `Enter the ${MIN_TEAM_INVITE_PASSWORD_LENGTH}-character team invite password.`;
   if (message.textContent) return;
   if (!apiConfigured()) {
     message.textContent = "Account creation is not connected yet.";

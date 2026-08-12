@@ -42,7 +42,7 @@
             <div class="field"><label for="createName">Your full name</label><input id="createName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter your full name"></div>
             <div class="field"><label for="createPassword">Create a personal password</label><input id="createPassword" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="256" required><p class="field-hint">Use at least 8 characters. This password is never stored.</p></div>
             <div class="field"><label for="confirmPassword">Confirm personal password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
-            <div class="field invite-field"><label for="teamInvitePassword">Team invite password</label><input id="teamInvitePassword" type="password" autocomplete="off" maxlength="256" required><p class="field-hint">This is the existing shared team password. You need it only when creating the account.</p></div>
+            <div class="field invite-field"><label for="teamInvitePassword">Team invite password</label><input id="teamInvitePassword" type="password" autocomplete="off" minlength="7" maxlength="256" required><p class="field-hint">This is the existing shared team password. You need it only when creating the account.</p></div>
             <p id="createError" class="form-message" role="alert"></p>
             <button class="button button-primary auth-submit" type="submit">Create account</button>
           </form>
@@ -237,6 +237,6 @@
     </dialog>
 
     <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="assets/app.js?v=20260813-holiday-day-count-v1"></script>
+    <script type="module" src="assets/app.js?v=20260813-team-invite-v2"></script>
   </body>
 </html>

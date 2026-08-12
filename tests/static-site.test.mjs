@@ -47,11 +47,14 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /id="loginPassword"[^>]*minlength="8"/u);
   assert.match(html, /id="createPassword"[^>]*minlength="8"/u);
   assert.match(html, /id="confirmPassword"[^>]*minlength="8"/u);
+  assert.match(html, /id="teamInvitePassword"[^>]*minlength="7"/u);
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
   assert.match(html, /assets\/design-v3\.css\?v=20260813-full-cell-hover-v7/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
+  assert.match(app, /MIN_TEAM_INVITE_PASSWORD_LENGTH\s*=\s*7/u);
+  assert.doesNotMatch(html, /team123/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
 
@@ -61,7 +64,7 @@ test("team totals are plain metadata without generic or decorative counter shape
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /assets\/app\.js\?v=20260813-holiday-day-count-v1/u);
+  assert.match(html, /assets\/app\.js\?v=20260813-team-invite-v2/u);
   assert.match(app, /memberCount\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
   assert.match(design, /\.count-badge\s*\{[\s\S]*?border-radius:\s*0/u);
   assert.match(html, /id="awayTodayCount"[^>]*data-label="away"/u);

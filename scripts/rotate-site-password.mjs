@@ -17,9 +17,10 @@ if (generate) {
   oldPassword = credentials.SITE_PASSWORD;
   newPassword = `team_${toBase64Url(crypto.getRandomValues(new Uint8Array(24)))}`;
 }
-if (!oldPassword || !newPassword || newPassword.length < 20) throw new Error("Set OLD_SITE_PASSWORD and a NEW_SITE_PASSWORD of at least 20 characters, or set GENERATE_NEW_SITE_PASSWORD=1.");
+if (!oldPassword || !newPassword || newPassword.length < 7) throw new Error("Set OLD_SITE_PASSWORD and a NEW_SITE_PASSWORD of at least 7 characters, or set GENERATE_NEW_SITE_PASSWORD=1.");
 
 const configPath = path.join(root, "data", "config.enc.json");
+const presencePath = path.join(root, "data", "presence.enc.json");
 const peopleDir = path.join(root, "data", "people");
 const accountsDir = path.join(root, "data", "accounts");
 const accountFiles = (await readdir(accountsDir, { withFileTypes: true }).catch(() => [])).filter((entry) => entry.isFile() && entry.name.endsWith(".json"));
@@ -27,6 +28,8 @@ if (accountFiles.length) throw new Error("Remove or recreate personal accounts b
 const configDocument = JSON.parse(await readFile(configPath, "utf8"));
 const oldSecrets = await deriveSecrets(oldPassword, configDocument.kdf);
 const config = await decryptJson(configDocument, oldSecrets);
+const presenceDocument = JSON.parse(await readFile(presencePath, "utf8"));
+const presence = await decryptJson(presenceDocument, oldSecrets);
 const files = (await readdir(peopleDir)).filter((file) => file.endsWith(".enc.json"));
 const records = [];
 for (const file of files) {
@@ -36,6 +39,7 @@ for (const file of files) {
 
 const nextSecrets = await deriveSecrets(newPassword, makeKdf());
 await writeFile(configPath, `${JSON.stringify(await encryptJson(config, nextSecrets), null, 2)}\n`, "utf8");
+await writeFile(presencePath, `${JSON.stringify(await encryptJson(presence, nextSecrets), null, 2)}\n`, "utf8");
 for (const record of records) {
   await writeFile(path.join(peopleDir, record.file), `${JSON.stringify(await encryptJson(record.value, nextSecrets), null, 2)}\n`, "utf8");
 }
@@ -49,4 +53,4 @@ if (generate) {
     if (vars) await writeFile(varsPath, vars.replace(/^SITE_AUTH_TOKEN_HASH=.*$/mu, `SITE_AUTH_TOKEN_HASH=${nextVerifier}`), { encoding: "utf8", mode: 0o600 });
   }
 }
-console.log(`Re-encrypted config and ${records.length} person record(s). Update the Worker SITE_AUTH_TOKEN_HASH before publishing these files.`);
+console.log(`Re-encrypted config, presence, and ${records.length} person record(s). Update the Worker SITE_AUTH_TOKEN_HASH before publishing these files.`);
