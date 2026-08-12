@@ -50,6 +50,7 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
+  assert.match(html, /assets\/design-v3\.css\?v=20260812-prism-v4/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
@@ -77,6 +78,21 @@ test("homepage editing is visible only during a live Admin session", async () =>
   assert.match(app, /function clearAdminSession[\s\S]*?\$\("editHomeButton"\)\.hidden = true;/u);
   assert.match(app, /function beginAdminSession[\s\S]*?\$\("editHomeButton"\)\.hidden = false;/u);
   assert.match(app, /setTimeout\(\(\) => clearAdminSession\(\{ prompt: true \}\), lifetimeMs\)/u);
+});
+
+test("midnight prism design system brings a balanced multicolor identity to every surface", async () => {
+  const [html, design] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /theme-color" content="#081923"/u);
+  assert.match(design, /--green:\s*#39c6a0/u);
+  assert.match(design, /--coral:\s*#ff806c/u);
+  assert.match(design, /--blue:\s*#70a7ff/u);
+  assert.match(design, /\.holidays-action\s*\{[\s\S]*?rgba\(133, 48, 74/u);
+  assert.match(design, /\.work-action\s*\{[\s\S]*?rgba\(17, 91, 99/u);
+  assert.match(design, /\.modal-card\s*\{[\s\S]*?#3ac6a0/u);
+  assert.match(design, /@media \(max-height: 900px\) and \(min-width: 700px\)/u);
 });
 
 test("MOM and the encrypted personal profile are interactive polished controls", async () => {
