@@ -261,10 +261,12 @@ body {
 
 .app-shell::after {
   background:
-    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px),
-    linear-gradient(120deg, rgba(112,167,255,.035), transparent 30% 72%, rgba(255,128,108,.045));
-  background-size: 72px 72px, 72px 72px, auto;
+    radial-gradient(circle at 1px 1px, rgba(113, 205, 191, .15) 1px, transparent 1.6px),
+    linear-gradient(rgba(122, 184, 194, .085) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(122, 184, 194, .075) 1px, transparent 1px),
+    linear-gradient(120deg, rgba(112,167,255,.06), transparent 30% 72%, rgba(255,128,108,.06));
+  background-size: 72px 72px, 72px 72px, 72px 72px, auto;
+  background-position: 0 0, 0 0, 0 0, 0 0;
   box-shadow: inset 0 0 220px rgba(0, 7, 15, .52);
 }
 
@@ -306,22 +308,50 @@ body {
 }
 
 .profile-chevron {
-  flex: 0 0 21px;
-  width: 21px;
-  height: 28px;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 14px;
+  display: block;
+  position: relative;
   border: 0;
   border-radius: 0;
-  background: url("images/profile-forward-gem-v1.png") center / contain no-repeat;
+  background: none;
   color: transparent;
   font-size: 0;
-  filter: drop-shadow(0 4px 8px rgba(0, 7, 18, .42));
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1), filter 220ms ease;
+  filter: none;
+  transition: transform 200ms cubic-bezier(.2,.8,.2,1);
+}
+
+.profile-chevron::before,
+.profile-chevron::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.profile-chevron::before {
+  right: 2px;
+  top: 3px;
+  width: 7px;
+  height: 7px;
+  border-top: 1.5px solid #ffac7e;
+  border-right: 1.5px solid #ffac7e;
+  transform: rotate(45deg);
+}
+
+.profile-chevron::after {
+  left: 1px;
+  top: 6px;
+  width: 13px;
+  height: 1.5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #62d5b8, #83aefb 58%, #ffac7e);
 }
 
 .account-chip:hover .profile-chevron {
-  background: url("images/profile-forward-gem-v1.png") center / contain no-repeat;
-  transform: translateX(3px) scale(1.08) rotate(2deg);
-  filter: drop-shadow(0 5px 10px rgba(51, 213, 186, .24)) drop-shadow(0 2px 5px rgba(255, 145, 108, .28));
+  background: none;
+  transform: translateX(3px);
+  filter: none;
 }
 
 .app-nav {
@@ -448,30 +478,107 @@ body {
 .portal-action-card small { color: rgba(233,245,245,.66); }
 .portal-action-card em { color: rgba(236,245,245,.67); }
 
-.mom-card-arrow {
-  border-color: rgba(255,255,255,.17);
-  background: rgba(255,255,255,.08);
-  color: #fff;
-}
-
 .action-arrow {
-  flex: 0 0 68px;
-  width: 68px;
-  height: 44px;
+  --arrow-tail: #6dd8bc;
+  --arrow-head: #ffb086;
+  flex: 0 0 50px;
+  width: 50px;
+  height: 28px;
+  display: block;
+  position: relative;
   border: 0;
   border-radius: 0;
-  background: url("images/action-forward-gem-v1.png") center / contain no-repeat;
+  background: none;
   color: transparent;
   font-size: 0;
-  filter: drop-shadow(0 9px 14px rgba(0, 7, 18, .42));
-  transition: transform 240ms cubic-bezier(.2,.8,.2,1), filter 240ms ease;
+  filter: none;
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+}
+
+.work-action .action-arrow {
+  --arrow-tail: #78a9ff;
+  --arrow-head: #69ddbd;
+}
+
+.action-arrow::before,
+.action-arrow::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.action-arrow::before {
+  left: 3px;
+  right: 7px;
+  top: 13px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--arrow-tail) 26%, var(--arrow-head));
+  transition: left 220ms ease;
+}
+
+.action-arrow::after {
+  right: 4px;
+  top: 7px;
+  width: 12px;
+  height: 12px;
+  border-top: 2px solid var(--arrow-head);
+  border-right: 2px solid var(--arrow-head);
+  transform: rotate(45deg);
 }
 
 .portal-action-card:hover .action-arrow {
   border: 0;
-  background: url("images/action-forward-gem-v1.png") center / contain no-repeat;
-  transform: translateX(5px) translateY(-2px) scale(1.06) rotate(-1deg);
-  filter: drop-shadow(0 12px 18px rgba(0, 8, 19, .5)) drop-shadow(0 0 11px rgba(75, 211, 188, .2));
+  background: none;
+  transform: translateX(5px);
+  filter: none;
+}
+
+.portal-action-card:hover .action-arrow::before { left: 0; }
+
+.mom-card-arrow {
+  width: 34px;
+  height: 30px;
+  display: block;
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: transparent;
+  font-size: 0;
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+}
+
+.mom-card-arrow::before,
+.mom-card-arrow::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.mom-card-arrow::before {
+  left: 6px;
+  bottom: 6px;
+  width: 24px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #72a9ff, #68d9bc 48%, #ffad82);
+  transform: rotate(-45deg);
+  transform-origin: left center;
+}
+
+.mom-card-arrow::after {
+  right: 3px;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid #ffad82;
+  border-right: 2px solid #ffad82;
+}
+
+.mom-card:hover .mom-card-arrow {
+  background: none;
+  transform: translate(3px, -3px);
 }
 
 .mom-card {
@@ -552,31 +659,51 @@ body {
 
 .holidays-page .summary-card .count-badge {
   color: #9fc5c4;
+  background: none;
+  box-shadow: none;
 }
 
 .holidays-page .spotlight-card .count-badge {
   color: #ffc098;
+  background: none;
+  box-shadow: none;
 }
 
 /* Plain metadata: no pills, frames, rails, or decorative counter shapes. */
 .count-badge {
   min-width: 0;
   height: auto;
-  display: inline;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
   color: #91aaac;
-  font-size: .68rem;
-  font-weight: 760;
+  font-size: 1rem;
+  font-weight: 720;
   font-variant-numeric: tabular-nums;
-  letter-spacing: .04em;
+  letter-spacing: -.025em;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .count-badge::before { content: none; }
+
+.count-badge::after {
+  content: attr(data-label);
+  color: #799395;
+  font-size: .5rem;
+  font-weight: 780;
+  letter-spacing: .11em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.spotlight-card .count-badge::after { color: #b98f84; }
 
 .holidays-page .summary-card .person-row {
   border: 1px solid rgba(177, 218, 211, .07);
@@ -1039,7 +1166,7 @@ button.work-status.is-office {
 }
 
 @media (max-width: 760px) {
-  .app-shell::after { background-size: 48px 48px, 48px 48px, auto; }
+  .app-shell::after { background-size: 48px 48px, 48px 48px, 48px 48px, auto; }
   .app-header { border-radius: 0 0 18px 18px; }
   .portal-hero {
     min-height: 535px;
