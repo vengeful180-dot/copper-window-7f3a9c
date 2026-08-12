@@ -29,6 +29,9 @@ if (!process.argv.includes("--config-only")) {
     else presence.members.push({ accountId: account.id, displayName: seedName, officeDays: [] });
   }
 
+  const removeAccountId = String(process.env.PORTAL_REMOVE_ACCOUNT_ID ?? "").toLowerCase();
+  if (removeAccountId) presence.members = presence.members.filter((member) => member.accountId !== removeAccountId);
+
   presence = assertPresenceRecord(presence);
   await writeFile(presencePath, `${JSON.stringify(await encryptJson(presence, secrets), null, 2)}\n`, "utf8");
 }
