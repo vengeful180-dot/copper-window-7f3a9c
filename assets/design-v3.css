@@ -911,48 +911,68 @@ body {
 }
 
 .work-row.is-current-user {
-  background: linear-gradient(90deg, rgba(255,128,108,.13), rgba(112,167,255,.085));
-  box-shadow: inset 0 0 0 1px rgba(255,155,114,.27);
+  background: inherit;
+  box-shadow: inset 0 0 0 2px #ff9b72;
 }
 
-.work-row.is-current-user .work-person-cell { box-shadow: inset 3px 0 0 #ff9b72; }
+.work-row.is-current-user .work-person-cell { box-shadow: inset 5px 0 0 #ff9b72; }
 .work-person-cell small { color: #ffb98e; }
 
 .work-day-heading.is-today {
-  color: #fff4e6;
-  background: linear-gradient(180deg, rgba(255,128,108,.25), rgba(154,140,255,.14));
-  box-shadow: inset 2px 0 0 rgba(255,155,114,.44), inset -2px 0 0 rgba(255,155,114,.44), inset 0 2px 0 rgba(255,155,114,.5);
+  color: #d9ebff;
+  background: transparent;
+  box-shadow: inset 3px 0 0 #70a7ff, inset -3px 0 0 #70a7ff, inset 0 3px 0 #70a7ff;
 }
 
 .work-day-cell.is-today {
-  background: linear-gradient(180deg, rgba(255,128,108,.105), rgba(112,167,255,.055));
-  box-shadow: inset 2px 0 0 rgba(255,155,114,.29), inset -2px 0 0 rgba(255,155,114,.29);
+  background: transparent;
+  box-shadow: inset 3px 0 0 #70a7ff, inset -3px 0 0 #70a7ff;
 }
 
 .work-row:last-child .work-day-cell.is-today {
-  box-shadow: inset 2px 0 0 rgba(255,155,114,.29), inset -2px 0 0 rgba(255,155,114,.29), inset 0 -2px 0 rgba(255,155,114,.34);
+  box-shadow: inset 3px 0 0 #70a7ff, inset -3px 0 0 #70a7ff, inset 0 -3px 0 #70a7ff;
 }
 
 .work-day-cell.is-today > .work-status {
-  background-image: linear-gradient(145deg, rgba(255,155,114,.065), rgba(112,167,255,.025));
+  background-image: none;
 }
 
-.work-status::before { border-radius: 3px; }
-.work-status.is-home { color: #6edbb8; }
-.work-status.is-office { color: #f4be72; }
-.work-status.is-holiday { color: #ff8d84; }
+.work-status {
+  width: 100%;
+  min-width: 0;
+  min-height: 58px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.work-status::before { width: 9px; height: 9px; border-radius: 3px; box-shadow: 0 0 0 4px rgba(255,255,255,.035); }
+.work-status.is-home {
+  color: #78caff;
+  background: linear-gradient(145deg, rgba(48, 143, 211, .28), rgba(21, 76, 122, .17));
+  box-shadow: inset 0 0 0 1px rgba(120, 202, 255, .19);
+}
+.work-status.is-office {
+  color: #ffd166;
+  background: linear-gradient(145deg, rgba(226, 169, 49, .3), rgba(143, 91, 20, .18));
+  box-shadow: inset 0 0 0 1px rgba(255, 209, 102, .2);
+}
+.work-status.is-holiday {
+  color: #ff747d;
+  background: linear-gradient(145deg, rgba(211, 62, 75, .3), rgba(124, 34, 47, .2));
+  box-shadow: inset 0 0 0 1px rgba(255, 116, 125, .21);
+}
 
 button.work-status.is-home {
-  background: linear-gradient(145deg, rgba(57,198,160,.14), rgba(57,198,160,.055));
+  background: linear-gradient(145deg, rgba(48, 143, 211, .28), rgba(21, 76, 122, .17));
 }
 
 button.work-status.is-office {
-  background: linear-gradient(145deg, rgba(244,190,114,.16), rgba(255,128,108,.055));
+  background: linear-gradient(145deg, rgba(226, 169, 49, .3), rgba(143, 91, 20, .18));
 }
 
-.work-day-cell:has(> .work-status.is-home) { background-color: rgba(57,198,160,.035); }
-.work-day-cell:has(> .work-status.is-office) { background-color: rgba(244,190,114,.04); }
-.work-day-cell:has(> .work-status.is-holiday) { background-color: rgba(255,128,108,.055); }
+.work-day-cell:has(> .work-status) { padding: 0; background: transparent; }
+button.work-status:hover { filter: none; box-shadow: inset 0 0 0 2px currentColor; }
 
 /* Dialogs and editor surfaces */
 .modal {

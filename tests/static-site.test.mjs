@@ -50,7 +50,7 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
-  assert.match(html, /assets\/design-v3\.css\?v=20260813-office-modal-fit-v1/u);
+  assert.match(html, /assets\/design-v3\.css\?v=20260813-work-status-colors-v1/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
@@ -252,9 +252,10 @@ test("holiday calendar keeps its layered glass treatment without scroll-flickeri
 });
 
 test("work-location controls fill the entire day cell and carry their status tint", async () => {
-  const [app, styles] = await Promise.all([
+  const [app, styles, design] = await Promise.all([
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
   assert.match(styles, /button\.work-status\s*\{[^}]*width:\s*100%[^}]*min-height:\s*58px/u);
   assert.match(styles, /button\.work-status\.is-home\s*\{[^}]*linear-gradient/u);
@@ -272,6 +273,13 @@ test("work-location controls fill the entire day cell and carry their status tin
   assert.match(styles, /\.work-table\s*\{[^}]*grid-auto-rows:\s*58px/u);
   assert.match(styles, /\.work-row\s*\{[^}]*height:\s*58px/u);
   assert.match(styles, /\.work-day-cell\.is-today\s*\{[^}]*padding:\s*0/u);
+  assert.match(design, /\.work-row\.is-current-user\s*\{[^}]*background:\s*inherit[^}]*inset 0 0 0 2px #ff9b72/u);
+  assert.match(design, /\.work-day-heading\.is-today\s*\{[^}]*background:\s*transparent[^}]*inset 3px 0 0 #70a7ff/u);
+  assert.match(design, /\.work-day-cell\.is-today\s*\{[^}]*background:\s*transparent[^}]*inset 3px 0 0 #70a7ff/u);
+  assert.match(design, /\.work-status\.is-home\s*\{[^}]*color:\s*#78caff[^}]*rgba\(48, 143, 211, \.28\)/u);
+  assert.match(design, /\.work-status\.is-office\s*\{[^}]*color:\s*#ffd166[^}]*rgba\(226, 169, 49, \.3\)/u);
+  assert.match(design, /\.work-status\.is-holiday\s*\{[^}]*color:\s*#ff747d[^}]*rgba\(211, 62, 75, \.3\)/u);
+  assert.match(design, /\.work-day-cell:has\(> \.work-status\)\s*\{[^}]*background:\s*transparent/u);
   assert.doesNotMatch(styles, /\.(?:work-week-card|work-empty)\s*\{[^}]*backdrop-filter/u);
   assert.match(app, /holidayRecordIds\.has\(member\.accountId\)[\s\S]*?"Demo"/u);
   assert.match(app, /latest\.members = latest\.members\.filter\(\(member\) => member\.accountId !== personId\)/u);
