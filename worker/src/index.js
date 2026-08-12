@@ -40,8 +40,8 @@ function requireRate(rate) {
   if (!rate.allowed) throw new InputError("Too many attempts. Try again later.", 429);
 }
 
-async function requireSite(request, env) {
-  requireRate(checkWriteRate(request));
+async function requireSite(request, env, { countWrite = true } = {}) {
+  if (countWrite) requireRate(checkWriteRate(request));
   if (!await authorizeSite(request, env)) throw new InputError("Authentication failed.", 401);
 }
 
@@ -70,12 +70,26 @@ export function createWorker(fetchImpl = fetch) {
         requireOrigin(request, env);
         const store = () => new GitHubStore(env, fetchImpl);
 
+        if (request.method === "GET" && url.pathname === "/bootstrap/config") {
+          return json(request, env, { file: await store().get("data/config.enc.json") });
+        }
+
         if (request.method === "POST" && url.pathname === "/api/admin/session") {
           const rate = checkAdminRate(request);
           if (!rate.allowed) return json(request, env, { error: "Too many attempts. Try again later." }, 429, { "Retry-After": String(rate.retryAfter) });
           const body = await readJsonBody(request);
           if (!await verifyAdminPassword(body.password, env)) return json(request, env, { error: "Authentication failed." }, 401);
           return json(request, env, { token: await createAdminToken(env), expiresIn: 900 });
+        }
+
+        if (request.method === "GET" && url.pathname === "/api/index") {
+          await requireSite(request, env, { countWrite: false });
+          return json(request, env, { file: await store().get("data/index.json") });
+        }
+
+        if (request.method === "GET" && url.pathname === "/api/config") {
+          await requireSite(request, env, { countWrite: false });
+          return json(request, env, { file: await store().get("data/config.enc.json") });
         }
 
         if (request.method === "POST" && url.pathname === "/api/person") {
@@ -86,6 +100,11 @@ export function createWorker(fetchImpl = fetch) {
         }
 
         const personMatch = url.pathname.match(/^\/api\/person\/([^/]+)$/u);
+        if (request.method === "GET" && personMatch) {
+          await requireSite(request, env, { countWrite: false });
+          const id = validatePersonId(personMatch[1]);
+          return json(request, env, { file: await store().get(`data/people/${id}.enc.json`) });
+        }
         if (request.method === "PUT" && personMatch) {
           await requireSite(request, env);
           const id = validatePersonId(personMatch[1]);

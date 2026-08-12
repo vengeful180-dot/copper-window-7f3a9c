@@ -65,6 +65,29 @@ test("site authentication rejects wrong token and accepts correct first-person w
   assert.deepEqual(github.files.get("data/index.json").document, { people: [personId] });
 });
 
+test("Worker-backed reads return fresh encrypted repository files", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const config = await encryptedDocument({ mom: "Fresh", weekLabel: "", announcement: "", secondaryAnnouncement: "" });
+  const person = await encryptedDocument({ id: personId, name: "Fresh person", holidays: [] });
+  const github = new MockGitHub({
+    "data/config.enc.json": config,
+    "data/index.json": { people: [personId] },
+    [`data/people/${personId}.enc.json`]: person,
+  });
+  const worker = createWorker(github.fetch);
+
+  const bootstrap = await worker.fetch(jsonRequest("/bootstrap/config", { method: "GET" }), env);
+  assert.equal(bootstrap.status, 200);
+  assert.deepEqual((await bootstrap.json()).file.document, config);
+
+  for (const [path, expected] of [["/api/index", { people: [personId] }], ["/api/config", config], [`/api/person/${personId}`, person]]) {
+    const response = await worker.fetch(jsonRequest(path, { method: "GET", authorization: "Bearer site-test-token" }), env);
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).file.document, expected);
+  }
+});
+
 test("Admin token can update encrypted MOM/config data", async () => {
   resetRateLimitsForTests();
   const env = await workerEnv();

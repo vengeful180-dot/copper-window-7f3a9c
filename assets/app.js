@@ -104,14 +104,45 @@ async function loadEncryptedFile(path) {
   return { document, digest: await digestDocument(document), sha: null };
 }
 
+async function verifiedRepositoryFile(file) {
+  if (!file?.document || typeof file.digest !== "string") throw new Error("The repository returned an invalid encrypted file.");
+  if (await digestDocument(file.document) !== file.digest) throw new Error("The repository file digest did not match.");
+  return { document: file.document, digest: file.digest, sha: file.sha ?? null };
+}
+
+async function loadBootstrapConfig() {
+  if (!apiConfigured()) return loadEncryptedFile("config.enc.json");
+  const response = await api.bootstrapConfig();
+  return verifiedRepositoryFile(response.file);
+}
+
 async function loadRepositoryState(secrets, knownConfig = null) {
-  const index = validateIndex(await fetchDataJson("index.json"));
-  const loadedPeople = await Promise.all(index.people.map(async (id) => {
-    const meta = await loadEncryptedFile(`people/${id}.enc.json`);
-    const person = assertPersonRecord(await decryptJson(meta.document, secrets), id);
-    return { person, meta };
-  }));
-  const configMeta = knownConfig ?? await loadEncryptedFile("config.enc.json");
+  let index;
+  let loadedPeople;
+  let configMeta;
+  if (apiConfigured()) {
+    const [indexResponse, configResponse] = await Promise.all([
+      api.readIndex(secrets.authToken),
+      api.readConfig(secrets.authToken),
+    ]);
+    const indexMeta = await verifiedRepositoryFile(indexResponse.file);
+    index = validateIndex(indexMeta.document);
+    loadedPeople = await Promise.all(index.people.map(async (id) => {
+      const response = await api.readPerson(id, secrets.authToken);
+      const meta = await verifiedRepositoryFile(response.file);
+      const person = assertPersonRecord(await decryptJson(meta.document, secrets), id);
+      return { person, meta };
+    }));
+    configMeta = await verifiedRepositoryFile(configResponse.file);
+  } else {
+    index = validateIndex(await fetchDataJson("index.json"));
+    loadedPeople = await Promise.all(index.people.map(async (id) => {
+      const meta = await loadEncryptedFile(`people/${id}.enc.json`);
+      const person = assertPersonRecord(await decryptJson(meta.document, secrets), id);
+      return { person, meta };
+    }));
+    configMeta = knownConfig ?? await loadEncryptedFile("config.enc.json");
+  }
   const config = assertConfigRecord(await decryptJson(configMeta.document, secrets));
   return {
     people: loadedPeople.map(({ person }) => person).sort((a, b) => a.name.localeCompare(b.name)),
@@ -137,7 +168,7 @@ async function unlock(event) {
   state.busy = true;
   setButtonBusy(submit, true, "Unlocking…", "Unlock");
   try {
-    const configMeta = await loadEncryptedFile("config.enc.json");
+    const configMeta = await loadBootstrapConfig();
     let unlocked;
     try {
       unlocked = await unlockJson(configMeta.document, password);

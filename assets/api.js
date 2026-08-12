@@ -39,6 +39,10 @@ async function request(path, { method = "GET", body, siteToken, adminToken } = {
 
 export const api = {
   health: () => request("/health"),
+  bootstrapConfig: () => request("/bootstrap/config"),
+  readIndex: (siteToken) => request("/api/index", { siteToken }),
+  readConfig: (siteToken) => request("/api/config", { siteToken }),
+  readPerson: (id, siteToken) => request(`/api/person/${encodeURIComponent(id)}`, { siteToken }),
   createPerson: (body, siteToken) => request("/api/person", { method: "POST", body, siteToken }),
   updatePerson: (id, body, siteToken) => request(`/api/person/${encodeURIComponent(id)}`, { method: "PUT", body, siteToken }),
   adminSession: (password) => request("/api/admin/session", { method: "POST", body: { password } }),
