@@ -132,6 +132,25 @@ test("Admin token can update encrypted MOM/config data", async () => {
   assert.deepEqual(github.files.get("data/config.enc.json").document, after);
 });
 
+test("Admin token can update every encrypted work-location row", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const before = await encryptedDocument({ version: 1, members: [] });
+  const after = await encryptedDocument({ version: 1, members: [{ accountId: personId, displayName: "Managed by Admin", officeDays: ["2026-08-13"] }] });
+  const github = new MockGitHub({ "data/presence.enc.json": before });
+  const worker = createWorker(github.fetch);
+  const login = await worker.fetch(jsonRequest("/api/admin/session", { body: { password: "admin-test-password" }, ip: "203.0.113.14" }), env);
+  const { token } = await login.json();
+  const update = await worker.fetch(jsonRequest("/api/admin/presence", {
+    method: "PUT",
+    body: { document: after, expectedDigest: await digestDocument(before) },
+    authorization: `Admin ${token}`,
+    ip: "203.0.113.14",
+  }), env);
+  assert.equal(update.status, 200);
+  assert.deepEqual(github.files.get("data/presence.enc.json").document, after);
+});
+
 test("stale client update receives 409 and the latest encrypted document", async () => {
   resetRateLimitsForTests();
   const env = await workerEnv();

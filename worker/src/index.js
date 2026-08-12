@@ -212,6 +212,13 @@ export function createWorker(fetchImpl = fetch) {
           return json(request, env, { ok: true, file });
         }
 
+        if (request.method === "PUT" && url.pathname === "/api/admin/presence") {
+          await requireAdmin(request, env);
+          const body = validateEncryptedWriteBody(await readJsonBody(request));
+          const file = await store().updateEncrypted("data/presence.enc.json", body.document, body.expectedDigest, "Admin update encrypted work locations");
+          return json(request, env, { ok: true, file });
+        }
+
         if (request.method === "POST" && url.pathname === "/api/admin/person") {
           await requireAdmin(request, env);
           const body = validateCreatePersonBody(await readJsonBody(request));

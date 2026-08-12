@@ -48,6 +48,7 @@ export const api = {
   readConfig: (sessionToken) => request("/api/config", { sessionToken }),
   readPresence: (sessionToken) => request("/api/presence", { sessionToken }),
   updatePresence: (body, sessionToken) => request("/api/presence", { method: "PUT", body, sessionToken }),
+  adminUpdatePresence: (body, adminToken) => request("/api/admin/presence", { method: "PUT", body, adminToken }),
   readPerson: (id, sessionToken) => request(`/api/person/${encodeURIComponent(id)}`, { sessionToken }),
   createPerson: (body, sessionToken) => request("/api/person", { method: "POST", body, sessionToken }),
   updatePerson: (id, body, sessionToken) => request(`/api/person/${encodeURIComponent(id)}`, { method: "PUT", body, sessionToken }),

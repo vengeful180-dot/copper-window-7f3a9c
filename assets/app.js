@@ -1,4 +1,4 @@
-import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-owner-controls-v1";
+import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-work-admin-v1";
 import {
   decryptJson,
   deriveSecrets,
@@ -478,6 +478,7 @@ function clearAdminSession({ prompt = false } = {}) {
   if (state.unlocked && state.config) {
     renderSummaries();
     renderCalendar();
+    renderWorkSchedule();
   }
   if (prompt && $("adminDialog").open) {
     $("adminPanel").hidden = true;
@@ -497,6 +498,7 @@ function beginAdminSession(token, expiresIn) {
   if (state.unlocked && state.config) {
     renderSummaries();
     renderCalendar();
+    renderWorkSchedule();
   }
   state.adminExpiryTimer = window.setTimeout(() => clearAdminSession({ prompt: true }), lifetimeMs);
 }
@@ -593,7 +595,7 @@ async function verifiedPresence(file) {
   return { presence, meta: { document: file.document, digest: file.digest, sha: file.sha ?? null } };
 }
 
-async function commitPresenceMutation(mutate) {
+async function commitPresenceMutation(mutate, { admin = false } = {}) {
   let base = structuredClone(state.presence);
   let meta = state.presenceMeta;
   if (!meta) throw new UserMessageError("The work-location schedule is not ready yet.");
@@ -601,7 +603,9 @@ async function commitPresenceMutation(mutate) {
     const next = assertPresenceRecord(mutate(structuredClone(base)));
     const document = await encryptJson(next, state.secrets);
     try {
-      const response = await api.updatePresence({ document, expectedDigest: meta.digest }, state.sessionToken);
+      const response = admin
+        ? await api.adminUpdatePresence({ document, expectedDigest: meta.digest }, state.adminToken)
+        : await api.updatePresence({ document, expectedDigest: meta.digest }, state.sessionToken);
       const verified = await verifiedPresence(response.file);
       state.presence = verified.presence;
       state.presenceMeta = verified.meta;
@@ -644,14 +648,33 @@ function workStatusNode(member, iso) {
   }
   const office = member.officeDays.includes(iso);
   const ownRow = member.accountId === state.account?.id;
-  const status = makeElement(ownRow ? "button" : "span", `work-status ${office ? "is-office" : "is-home"}`, office ? "Office" : "Home");
-  if (ownRow) {
+  const editable = ownRow || Boolean(state.adminToken);
+  const status = makeElement(editable ? "button" : "span", `work-status ${office ? "is-office" : "is-home"}`, office ? "Office" : "Home");
+  if (editable) {
     status.type = "button";
     status.setAttribute("aria-pressed", String(office));
-    status.setAttribute("aria-label", `${friendlyDate(iso, { weekday: "long", day: "numeric", month: "long" })}: ${office ? "work at office" : "work from home"}. Select to change.`);
-    status.addEventListener("click", () => toggleOfficeDay(iso));
+    status.setAttribute("aria-label", `${member.displayName}, ${friendlyDate(iso, { weekday: "long", day: "numeric", month: "long" })}: ${office ? "work at office" : "work from home"}. Select to change.`);
+    status.addEventListener("click", () => toggleOfficeDay(member.accountId, member.displayName, iso));
   }
   return status;
+}
+
+function workMemberRow(member, week, holidayRecordIds) {
+  const row = makeElement("div", "work-row");
+  if (member.accountId === state.account?.id) row.classList.add("is-current-user");
+  const name = makeElement("div", "work-person-cell");
+  name.style.setProperty("--person-hue", personHue(member.accountId));
+  name.append(makeElement("span", "person-dot"), makeElement("strong", "", member.displayName));
+  if (member.accountId === state.account?.id) name.append(makeElement("small", "", "You"));
+  else if (holidayRecordIds.has(member.accountId)) name.append(makeElement("small", "", "Demo"));
+  row.append(name);
+  for (const iso of week.days) {
+    const cell = makeElement("div", "work-day-cell");
+    if (iso === todayIso()) cell.classList.add("is-today");
+    cell.append(workStatusNode(member, iso));
+    row.append(cell);
+  }
+  return row;
 }
 
 function renderWorkSchedule() {
@@ -664,21 +687,27 @@ function renderWorkSchedule() {
     return;
   }
   const dayFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
-  const members = [...state.presence.members].sort((first, second) => {
-    const firstIsCurrent = first.accountId === state.account?.id;
-    const secondIsCurrent = second.accountId === state.account?.id;
-    return firstIsCurrent === secondIsCurrent ? first.displayName.localeCompare(second.displayName) : firstIsCurrent ? -1 : 1;
-  });
+  const members = Object.freeze(
+    [...state.presence.members]
+      .sort((first, second) => {
+        const firstIsCurrent = first.accountId === state.account?.id;
+        const secondIsCurrent = second.accountId === state.account?.id;
+        return firstIsCurrent === secondIsCurrent ? first.displayName.localeCompare(second.displayName) : firstIsCurrent ? -1 : 1;
+      })
+      .map((member) => Object.freeze({ ...member, officeDays: Object.freeze([...(member.officeDays || [])]) })),
+  );
   const holidayRecordIds = new Set(state.people.map((person) => person.id));
   twoWorkWeeks().forEach((week, weekIndex) => {
     const card = makeElement("section", "work-week-card");
     const heading = makeElement("div", "work-week-heading");
     const copy = makeElement("div");
     copy.append(makeElement("p", "eyebrow", weekIndex === 0 ? "In progress" : "Coming next"), makeElement("h2", "", weekIndex === 0 ? "This week" : "Next week"), makeElement("span", "", `${friendlyDate(week.start)} – ${fullFriendlyDate(week.end)}`));
-    heading.append(copy);
+    heading.append(copy, makeElement("span", "work-member-count", `${members.length} ${members.length === 1 ? "person" : "people"}`));
     card.append(heading);
     const scroller = makeElement("div", "work-table-scroll");
     const table = makeElement("div", "work-table");
+    table.dataset.memberCount = String(members.length);
+    table.setAttribute("aria-label", `${weekIndex === 0 ? "This week" : "Next week"}: ${members.length} team members`);
     const header = makeElement("div", "work-row work-table-header");
     header.append(makeElement("div", "work-person-cell", "Team member"));
     for (const iso of week.days) {
@@ -686,42 +715,27 @@ function renderWorkSchedule() {
       if (iso === todayIso()) cell.classList.add("is-today");
       header.append(cell);
     }
-    table.append(header);
-    for (const member of members) {
-      const row = makeElement("div", "work-row");
-      if (member.accountId === state.account?.id) row.classList.add("is-current-user");
-      const name = makeElement("div", "work-person-cell");
-      name.style.setProperty("--person-hue", personHue(member.accountId));
-      name.append(makeElement("span", "person-dot"), makeElement("strong", "", member.displayName));
-      if (member.accountId === state.account?.id) name.append(makeElement("small", "", "You"));
-      else if (holidayRecordIds.has(member.accountId)) name.append(makeElement("small", "", "Demo"));
-      row.append(name);
-      for (const iso of week.days) {
-        const cell = makeElement("div", "work-day-cell");
-        if (iso === todayIso()) cell.classList.add("is-today");
-        cell.append(workStatusNode(member, iso));
-        row.append(cell);
-      }
-      table.append(row);
-    }
+    table.append(header, ...members.map((member) => workMemberRow(member, week, holidayRecordIds)));
     scroller.append(table);
     card.append(scroller);
     schedule.append(card);
   });
 }
 
-async function toggleOfficeDay(iso) {
-  if (state.busy || !state.account || isWeekendIso(iso)) return;
-  if (holidayForAccountDay(state.people, state.account.displayName, iso)) return;
+async function toggleOfficeDay(accountId, displayName, iso) {
+  const admin = Boolean(state.adminToken);
+  const ownRow = accountId === state.account?.id;
+  if (state.busy || !state.account || (!ownRow && !admin) || isWeekendIso(iso)) return;
+  if (holidayForAccountDay(state.people, displayName, iso)) return;
   state.busy = true;
   $("workMessage").textContent = "Saving your choice…";
   try {
     await commitPresenceMutation((latest) => {
-      const member = latest.members.find((candidate) => candidate.accountId === state.account.id);
-      if (!member) throw new UserMessageError("Your account row is still being prepared. Try again in a moment.");
+      const member = latest.members.find((candidate) => candidate.accountId === accountId);
+      if (!member) throw new UserMessageError("That team member's row is no longer available. Refresh and try again.");
       member.officeDays = member.officeDays.includes(iso) ? member.officeDays.filter((day) => day !== iso) : [...member.officeDays, iso];
       return latest;
-    });
+    }, { admin });
     $("workMessage").textContent = "Saved.";
     window.setTimeout(() => { if ($("workMessage").textContent === "Saved.") $("workMessage").textContent = ""; }, 1800);
   } catch (error) {

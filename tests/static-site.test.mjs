@@ -109,7 +109,7 @@ test("calendar and work schedule use dark integrated surfaces instead of white s
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v9/u);
+  assert.match(html, /20260812-work-admin-v1/u);
   assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.calendar-day\s*\{[^}]*linear-gradient/u);
   assert.match(styles, /\.work-legend span::before\s*\{/u);
@@ -123,7 +123,7 @@ test("dialogs use dark emerald surfaces and controls instead of white cards", as
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v9/u);
+  assert.match(html, /20260812-work-admin-v1/u);
   assert.match(styles, /\.modal-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.modal-card input, \.modal-card textarea\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
   assert.match(styles, /\.date-picker-trigger\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
@@ -138,7 +138,7 @@ test("holiday calendar keeps its layered glass treatment without scroll-flickeri
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v9/u);
+  assert.match(html, /20260812-work-admin-v1/u);
   assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient\(118deg[^}]*linear-gradient\(145deg/u);
   assert.match(styles, /\.calendar-card::before\s*\{/u);
   assert.match(styles, /\.calendar-card::after\s*\{/u);
@@ -158,7 +158,15 @@ test("work-location controls fill the entire day cell and carry their status tin
   assert.match(styles, /button\.work-status\.is-office\s*\{[^}]*linear-gradient/u);
   assert.match(styles, /\.work-day-cell:has\(> button\.work-status\)\s*\{\s*padding:\s*0/u);
   assert.match(styles, /button\.work-status:focus-visible\s*\{/u);
-  assert.match(app, /const members = \[\.\.\.state\.presence\.members\]\.sort/u);
+  assert.match(app, /const members = Object\.freeze\(/u);
+  assert.match(app, /table\.dataset\.memberCount = String\(members\.length\)/u);
+  assert.match(app, /table\.append\(header, \.\.\.members\.map\(\(member\) => workMemberRow/u);
+  assert.match(app, /const editable = ownRow \|\| Boolean\(state\.adminToken\)/u);
+  assert.match(app, /toggleOfficeDay\(member\.accountId, member\.displayName, iso\)/u);
+  assert.match(app, /api\.adminUpdatePresence/u);
+  assert.match(styles, /\.work-schedule\s*\{[^}]*align-items:\s*start/u);
+  assert.match(styles, /\.work-table\s*\{[^}]*display:\s*grid[^}]*contain:\s*layout paint/u);
+  assert.doesNotMatch(styles, /\.(?:work-page \.page-heading|work-week-card|work-empty)\s*\{[^}]*backdrop-filter/u);
   assert.match(app, /holidayRecordIds\.has\(member\.accountId\)[\s\S]*?"Demo"/u);
   assert.match(app, /latest\.members = latest\.members\.filter\(\(member\) => member\.accountId !== personId\)/u);
   assert.match(styles, /\.work-day-heading\.is-today\s*\{[^}]*linear-gradient[^}]*inset 2px 0/u);
@@ -182,7 +190,7 @@ test("holiday ownership controls, current-user accents, and crowded-day disclosu
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="dayHolidaysDialog"/u);
-  assert.match(html, /20260812-owner-controls-v1/u);
+  assert.match(html, /20260812-work-admin-v1/u);
   assert.match(api, /adminCreatePerson:\s*\(body, adminToken\)/u);
   assert.match(app, /function canManageHoliday\(person\)/u);
   assert.match(app, /const editable = canManageHoliday\(person\)/u);
