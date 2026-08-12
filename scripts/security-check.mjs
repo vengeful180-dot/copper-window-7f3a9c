@@ -43,6 +43,15 @@ for (const file of files.filter((candidate) => candidate.includes(`${path.sep}da
   if (Object.keys(parsed).sort().join(",") !== "cipher,kdf,version") failures.push(`${path.relative(root, file)}: not an encrypted envelope`);
 }
 
+for (const file of files.filter((candidate) => candidate.includes(`${path.sep}data${path.sep}accounts${path.sep}`) && candidate.endsWith(".json"))) {
+  const parsed = JSON.parse(await readFile(file, "utf8"));
+  const filename = path.basename(file, ".json");
+  if (!/^[A-Za-z0-9_-]{43}$/u.test(filename)) failures.push(`${path.relative(root, file)}: account filename is not opaque`);
+  if (Object.keys(parsed).sort().join(",") !== "id,kdf,verifierHash,version,wrappedEnvelope") failures.push(`${path.relative(root, file)}: unexpected account fields`);
+  if (Object.keys(parsed.wrappedEnvelope ?? {}).sort().join(",") !== "cipher,version") failures.push(`${path.relative(root, file)}: account envelope lacks Worker encryption`);
+  if (/"(?:displayName|password|team|holidays|announcement)"\s*:/iu.test(JSON.stringify(parsed))) failures.push(`${path.relative(root, file)}: account plaintext detected`);
+}
+
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exitCode = 1;

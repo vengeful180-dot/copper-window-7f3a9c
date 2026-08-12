@@ -30,18 +30,26 @@ const config = { mom: "", weekLabel: "", announcement: "", secondaryAnnouncement
 const encryptedConfig = await encryptJson(config, secrets);
 const adminSalt = crypto.getRandomValues(new Uint8Array(16));
 const sessionSecret = toBase64Url(crypto.getRandomValues(new Uint8Array(48)));
+const accountLookupSecret = toBase64Url(crypto.getRandomValues(new Uint8Array(48)));
+const accountSessionSecret = toBase64Url(crypto.getRandomValues(new Uint8Array(48)));
+const accountStorageSecret = toBase64Url(crypto.getRandomValues(new Uint8Array(48)));
 
 await mkdir(path.dirname(configPath), { recursive: true });
 await mkdir(path.join(root, "data", "people"), { recursive: true });
+await mkdir(path.join(root, "data", "accounts"), { recursive: true });
 await writeFile(configPath, `${JSON.stringify(encryptedConfig, null, 2)}\n`, "utf8");
 await writeFile(path.join(root, "data", "index.json"), `${JSON.stringify({ people: [] }, null, 2)}\n`, "utf8");
 await writeFile(path.join(root, "data", "people", ".gitkeep"), "", "utf8");
+await writeFile(path.join(root, "data", "accounts", ".gitkeep"), "", "utf8");
 await writeFile(credentialPath, `SITE_PASSWORD=${sitePassword}\nADMIN_PASSWORD=${adminPassword}\n`, { encoding: "utf8", mode: 0o600 });
 await writeFile(path.join(root, ".dev.vars"), [
   `SITE_AUTH_TOKEN_HASH=${await hashAuthToken(secrets.authToken)}`,
   `ADMIN_PASSWORD_HASH=${await deriveAdminHash(adminPassword, adminSalt)}`,
   `ADMIN_PASSWORD_SALT=${toBase64Url(adminSalt)}`,
   `ADMIN_SESSION_SECRET=${sessionSecret}`,
+  `ACCOUNT_LOOKUP_SECRET=${accountLookupSecret}`,
+  `ACCOUNT_SESSION_SECRET=${accountSessionSecret}`,
+  `ACCOUNT_STORAGE_SECRET=${accountStorageSecret}`,
   "GITHUB_DATA_TOKEN=replace-before-running-worker",
   "GITHUB_OWNER=replace-before-running-worker",
   "GITHUB_REPO=replace-before-running-worker",

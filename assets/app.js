@@ -1,5 +1,14 @@
 import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js";
-import { decryptJson, digestDocument, encryptJson, unlockJson } from "./crypto.js";
+import {
+  decryptJson,
+  deriveSecrets,
+  digestDocument,
+  encryptJson,
+  exportTeamAccess,
+  importTeamAccess,
+  makeKdf,
+  unlockJson,
+} from "./crypto.js";
 import {
   assertConfigRecord,
   assertPersonRecord,
@@ -19,9 +28,14 @@ import {
 } from "./model.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const SESSION_KEY = "quiet-leave-account-session-v1";
 const $ = (id) => document.getElementById(id);
 const state = {
   unlocked: false,
+  account: null,
+  sessionToken: null,
+  sessionExpiresAt: 0,
+  teamAccess: null,
   secrets: null,
   config: null,
   configMeta: null,
@@ -116,19 +130,19 @@ async function loadBootstrapConfig() {
   return verifiedRepositoryFile(response.file);
 }
 
-async function loadRepositoryState(secrets, knownConfig = null) {
+async function loadRepositoryState(secrets, sessionToken, knownConfig = null) {
   let index;
   let loadedPeople;
   let configMeta;
   if (apiConfigured()) {
     const [indexResponse, configResponse] = await Promise.all([
-      api.readIndex(secrets.authToken),
-      api.readConfig(secrets.authToken),
+      api.readIndex(sessionToken),
+      api.readConfig(sessionToken),
     ]);
     const indexMeta = await verifiedRepositoryFile(indexResponse.file);
     index = validateIndex(indexMeta.document);
     loadedPeople = await Promise.all(index.people.map(async (id) => {
-      const response = await api.readPerson(id, secrets.authToken);
+      const response = await api.readPerson(id, sessionToken);
       const meta = await verifiedRepositoryFile(response.file);
       const person = assertPersonRecord(await decryptJson(meta.document, secrets), id);
       return { person, meta };
@@ -152,47 +166,172 @@ async function loadRepositoryState(secrets, knownConfig = null) {
   };
 }
 
-async function unlock(event) {
+function assertAccountEnvelope(value, expectedId, enteredName) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || value.version !== 1) throw new Error("Invalid account envelope.");
+  if (value.accountId !== expectedId || !UUID.test(value.accountId)) throw new Error("Invalid account envelope.");
+  const displayName = normalizeName(value.displayName);
+  if (!displayName || displayName !== value.displayName || canonicalName(displayName) !== canonicalName(enteredName)) throw new Error("Invalid account envelope.");
+  if (!value.team || Object.keys(value).sort().join(",") !== "accountId,displayName,team,version") throw new Error("Invalid account envelope.");
+  return { accountId: value.accountId, displayName, team: value.team };
+}
+
+function storeSession() {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      version: 1,
+      account: state.account,
+      token: state.sessionToken,
+      expiresAt: state.sessionExpiresAt,
+      team: state.teamAccess,
+    }));
+  } catch { /* A privacy-restricted browser can still use the in-memory session. */ }
+}
+
+function clearStoredSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* Nothing else to clear. */ }
+}
+
+async function completeAccountLogin({ account, token, expiresIn, teamAccess, secrets = null }) {
+  const activeSecrets = secrets ?? await importTeamAccess(teamAccess);
+  const repositoryState = await loadRepositoryState(activeSecrets, token);
+  state.account = { id: account.accountId, displayName: account.displayName };
+  state.sessionToken = token;
+  state.sessionExpiresAt = Date.now() + Number(expiresIn) * 1000;
+  state.teamAccess = teamAccess;
+  state.secrets = activeSecrets;
+  state.config = repositoryState.config;
+  state.configMeta = repositoryState.configMeta;
+  state.people = repositoryState.people;
+  state.personMeta = repositoryState.personMeta;
+  state.unlocked = true;
+  $("signedInName").textContent = account.displayName;
+  $("unlockView").hidden = true;
+  $("appView").hidden = false;
+  storeSession();
+  renderAll();
+  void checkBackend();
+}
+
+function switchAuthView(view) {
+  const login = view === "login";
+  $("loginTab").classList.toggle("is-active", login);
+  $("createTab").classList.toggle("is-active", !login);
+  $("loginTab").setAttribute("aria-selected", String(login));
+  $("createTab").setAttribute("aria-selected", String(!login));
+  $("loginPanel").hidden = !login;
+  $("createPanel").hidden = login;
+  $("loginError").textContent = "";
+  $("createError").textContent = "";
+  (login ? $("loginName") : $("createName")).focus();
+}
+
+async function loginAccount(event) {
   event.preventDefault();
   if (state.busy) return;
-  const passwordInput = $("sitePassword");
-  const error = $("unlockError");
-  const submit = $("unlockForm").querySelector("button[type='submit']");
-  const password = passwordInput.value;
-  error.textContent = "";
-  if (!password) {
-    error.textContent = "Enter the shared team password.";
-    passwordInput.focus();
+  const name = normalizeName($("loginName").value);
+  const password = $("loginPassword").value;
+  const message = $("loginError");
+  const submit = $("loginForm").querySelector("button[type='submit']");
+  message.textContent = "";
+  if (!name || !password) {
+    message.textContent = "Enter your name and password.";
+    return;
+  }
+  if (!apiConfigured()) {
+    message.textContent = "Account login is not connected yet.";
     return;
   }
   state.busy = true;
-  setButtonBusy(submit, true, "Unlocking…", "Unlock");
+  setButtonBusy(submit, true, "Logging in…", "Log in");
   try {
-    const configMeta = await loadBootstrapConfig();
-    let unlocked;
-    try {
-      unlocked = await unlockJson(configMeta.document, password);
-    } catch {
-      throw new UserMessageError("Incorrect password.");
-    }
-    const repositoryState = await loadRepositoryState(unlocked.secrets, configMeta);
-    state.secrets = unlocked.secrets;
-    state.config = repositoryState.config;
-    state.configMeta = repositoryState.configMeta;
-    state.people = repositoryState.people;
-    state.personMeta = repositoryState.personMeta;
-    state.unlocked = true;
-    passwordInput.value = "";
-    $("unlockView").hidden = true;
-    $("appView").hidden = false;
-    renderAll();
-    void checkBackend();
-  } catch (caught) {
-    error.textContent = caught instanceof UserMessageError ? caught.message : "The protected calendar could not be opened. Please try again.";
-    passwordInput.select();
+    const lookup = await api.accountLookup(name);
+    const accountSecrets = await deriveSecrets(password, lookup.kdf);
+    const response = await api.accountSession({ name, verifier: accountSecrets.authToken });
+    const decrypted = await decryptJson(response.envelope, accountSecrets);
+    const account = assertAccountEnvelope(decrypted, response.accountId, name);
+    const secrets = await importTeamAccess(account.team);
+    await completeAccountLogin({ account, token: response.token, expiresIn: response.expiresIn, teamAccess: account.team, secrets });
+    $("loginForm").reset();
+  } catch (error) {
+    message.textContent = error instanceof ApiError && error.status === 401
+      ? "Name or password is incorrect."
+      : (error instanceof ApiError ? error.message : "The account could not be opened. Please try again.");
+    $("loginPassword").select();
   } finally {
     state.busy = false;
-    setButtonBusy(submit, false, "Unlocking…", "Unlock");
+    setButtonBusy(submit, false, "Logging in…", "Log in");
+  }
+}
+
+async function createAccount(event) {
+  event.preventDefault();
+  if (state.busy) return;
+  const name = normalizeName($("createName").value);
+  const password = $("createPassword").value;
+  const confirmation = $("confirmPassword").value;
+  const teamPassword = $("teamInvitePassword").value;
+  const message = $("createError");
+  const submit = $("createForm").querySelector("button[type='submit']");
+  message.textContent = "";
+  if (!name) message.textContent = "Enter your full name.";
+  else if (password.length < 12) message.textContent = "Choose a password with at least 12 characters.";
+  else if (password !== confirmation) message.textContent = "The two personal passwords do not match.";
+  else if (!teamPassword) message.textContent = "Enter the team invite password.";
+  if (message.textContent) return;
+  if (!apiConfigured()) {
+    message.textContent = "Account creation is not connected yet.";
+    return;
+  }
+  state.busy = true;
+  setButtonBusy(submit, true, "Creating account…", "Create account");
+  try {
+    const configMeta = await loadBootstrapConfig();
+    let teamSecrets;
+    try { teamSecrets = (await unlockJson(configMeta.document, teamPassword)).secrets; }
+    catch { throw new UserMessageError("The team invite password is incorrect."); }
+    const accountId = crypto.randomUUID();
+    const accountSecrets = await deriveSecrets(password, makeKdf());
+    const teamAccess = exportTeamAccess(teamSecrets);
+    const envelope = await encryptJson({ version: 1, accountId, displayName: name, team: teamAccess }, accountSecrets);
+    const response = await api.accountRegister({
+      id: accountId,
+      name,
+      kdf: accountSecrets.kdf,
+      verifier: accountSecrets.authToken,
+      envelope,
+    }, teamSecrets.authToken);
+    const account = { accountId, displayName: name, team: teamAccess };
+    await completeAccountLogin({ account, token: response.token, expiresIn: response.expiresIn, teamAccess, secrets: teamSecrets });
+    $("createForm").reset();
+    showToast("Your encrypted account is ready.");
+  } catch (error) {
+    message.textContent = error instanceof UserMessageError || error instanceof ApiError ? error.message : "The account could not be created. Please try again.";
+  } finally {
+    state.busy = false;
+    setButtonBusy(submit, false, "Creating account…", "Create account");
+  }
+}
+
+async function restoreSession() {
+  let saved;
+  try { saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { saved = null; }
+  if (!saved || saved.version !== 1 || !saved.account || !saved.team || typeof saved.token !== "string" || !Number.isFinite(saved.expiresAt) || saved.expiresAt <= Date.now()) {
+    clearStoredSession();
+    return;
+  }
+  $("loginError").textContent = "Restoring your secure session…";
+  try {
+    const secrets = await importTeamAccess(saved.team);
+    await completeAccountLogin({
+      account: { accountId: saved.account.id, displayName: saved.account.displayName },
+      token: saved.token,
+      expiresIn: Math.max(1, Math.floor((saved.expiresAt - Date.now()) / 1000)),
+      teamAccess: saved.team,
+      secrets,
+    });
+  } catch {
+    clearStoredSession();
+    $("loginError").textContent = "Your previous session ended. Log in again.";
   }
 }
 
@@ -215,7 +354,12 @@ async function checkBackend() {
 
 function lockPlanner() {
   for (const dialog of document.querySelectorAll("dialog[open]")) dialog.close();
+  clearStoredSession();
   state.unlocked = false;
+  state.account = null;
+  state.sessionToken = null;
+  state.sessionExpiresAt = 0;
+  state.teamAccess = null;
   state.secrets = null;
   state.config = null;
   state.configMeta = null;
@@ -228,11 +372,14 @@ function lockPlanner() {
   $("weekLabelValue").textContent = "";
   $("announcementValue").textContent = "";
   $("secondaryAnnouncementValue").textContent = "";
+  $("signedInName").textContent = "";
   for (const id of ["awayTodayList", "awayWeekList", "peopleList", "calendarGrid", "mobileAgenda", "adminPeopleList"]) $(id).replaceChildren();
   $("adminPassword").value = "";
+  $("loginForm").reset();
+  $("createForm").reset();
   $("appView").hidden = true;
   $("unlockView").hidden = false;
-  $("sitePassword").focus();
+  switchAuthView("login");
 }
 
 function setProtectedText(node, value, fallback) {
@@ -390,6 +537,7 @@ function openAddHoliday() {
   $("editPersonId").value = "";
   $("editHolidayId").value = "";
   $("employeeName").readOnly = false;
+  $("employeeName").value = state.account?.displayName ?? "";
   $("holidayStart").value = todayIso();
   $("holidayEnd").value = todayIso();
   $("holidayModalEyebrow").textContent = "New time away";
@@ -423,7 +571,7 @@ function openHolidayEditor(personId, holidayId) {
 }
 
 async function reloadPeople() {
-  const repositoryState = await loadRepositoryState(state.secrets, state.configMeta);
+  const repositoryState = await loadRepositoryState(state.secrets, state.sessionToken, state.configMeta);
   state.people = repositoryState.people;
   state.personMeta = repositoryState.personMeta;
   state.config = repositoryState.config;
@@ -449,7 +597,7 @@ async function commitPersonMutation(personId, mutate, { admin = false } = {}) {
     try {
       const response = admin
         ? await api.adminUpdatePerson(personId, { document, expectedDigest: meta.digest }, state.adminToken)
-        : await api.updatePerson(personId, { document, expectedDigest: meta.digest }, state.secrets.authToken);
+        : await api.updatePerson(personId, { document, expectedDigest: meta.digest }, state.sessionToken);
       const verified = await verifiedPerson(response.file, personId);
       const index = state.people.findIndex((person) => person.id === personId);
       state.people[index] = verified.person;
@@ -483,7 +631,7 @@ async function createPersonWithHoliday(input) {
     };
     const document = await encryptJson(person, state.secrets);
     try {
-      const response = await api.createPerson({ id: personId, document }, state.secrets.authToken);
+      const response = await api.createPerson({ id: personId, document }, state.sessionToken);
       const verified = await verifiedPerson(response.person, personId);
       state.people.push(verified.person);
       state.people.sort((a, b) => a.name.localeCompare(b.name));
@@ -786,7 +934,10 @@ function changeMonth(offset) {
 }
 
 function bindEvents() {
-  $("unlockForm").addEventListener("submit", unlock);
+  $("loginTab").addEventListener("click", () => switchAuthView("login"));
+  $("createTab").addEventListener("click", () => switchAuthView("create"));
+  $("loginForm").addEventListener("submit", loginAccount);
+  $("createForm").addEventListener("submit", createAccount);
   $("lockButton").addEventListener("click", lockPlanner);
   $("addHolidayButton").addEventListener("click", openAddHoliday);
   $("emptyAddButton").addEventListener("click", openAddHoliday);
@@ -808,3 +959,4 @@ function bindEvents() {
 }
 
 bindEvents();
+void restoreSession();

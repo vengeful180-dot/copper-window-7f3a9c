@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decryptJson, deriveSecrets, digestDocument, encryptJson, makeKdf, unlockJson } from "../assets/crypto.js";
+import { decryptJson, deriveSecrets, digestDocument, encryptJson, exportTeamAccess, importTeamAccess, makeKdf, unlockJson } from "../assets/crypto.js";
 
 test("AES-256-GCM round trip succeeds with the correct password", async () => {
   const kdf = makeKdf(Uint8Array.from({ length: 16 }, (_, index) => index));
@@ -27,4 +27,15 @@ test("fresh random GCM nonces produce different ciphertext", async () => {
 
 test("document digest is stable across object key ordering", async () => {
   assert.equal(await digestDocument({ b: 2, a: 1 }), await digestDocument({ a: 1, b: 2 }));
+});
+
+test("a personal account can wrap and restore the existing team encryption key", async () => {
+  const teamSecrets = await deriveSecrets("original-team-password", makeKdf());
+  const protectedCalendar = await encryptJson({ announcement: "Only the team can read this" }, teamSecrets);
+  const accountSecrets = await deriveSecrets("a-different-personal-password", makeKdf());
+  const envelope = await encryptJson({ team: exportTeamAccess(teamSecrets) }, accountSecrets);
+  const openedEnvelope = await decryptJson(envelope, accountSecrets);
+  const restoredTeamSecrets = await importTeamAccess(openedEnvelope.team);
+  assert.deepEqual(await decryptJson(protectedCalendar, restoredTeamSecrets), { announcement: "Only the team can read this" });
+  assert.notEqual(accountSecrets.dataKey, teamSecrets.dataKey);
 });

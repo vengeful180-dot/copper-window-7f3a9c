@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { deriveSecrets, encryptJson, makeKdf } from "../assets/crypto.js";
-import { resetRateLimitsForTests } from "../worker/src/auth.js";
+import { deriveSecrets, encryptJson, exportTeamAccess, makeKdf } from "../assets/crypto.js";
+import { accountLookupId, accountVerifierHash, authorizeAccount, createAccountToken, resetRateLimitsForTests } from "../worker/src/auth.js";
 import { digestDocument } from "../worker/src/github-store.js";
 import { createWorker } from "../worker/src/index.js";
 import { jsonRequest, MockGitHub, workerEnv } from "./helpers.mjs";
@@ -50,15 +50,18 @@ test("disallowed origins are rejected before authentication", async () => {
   assert.equal(response.headers.get("access-control-allow-origin"), null);
 });
 
-test("site authentication rejects wrong token and accepts correct first-person write", async () => {
+test("account sessions protect planner writes while the invite token cannot write holidays", async () => {
   resetRateLimitsForTests();
   const env = await workerEnv();
+  const accountToken = await createAccountToken(env, personId);
   const document = await encryptedDocument({ id: personId, name: "Encrypted in transit", holidays: [] });
   const github = new MockGitHub({ "data/index.json": { people: [] } });
   const worker = createWorker(github.fetch);
-  const wrong = await worker.fetch(jsonRequest("/api/person", { body: { id: personId, document }, authorization: "Bearer wrong" }), env);
+  const wrong = await worker.fetch(jsonRequest("/api/person", { body: { id: personId, document }, authorization: "Session wrong" }), env);
   assert.equal(wrong.status, 401);
-  const correct = await worker.fetch(jsonRequest("/api/person", { body: { id: personId, document }, authorization: "Bearer site-test-token", ip: "203.0.113.9" }), env);
+  const inviteOnly = await worker.fetch(jsonRequest("/api/person", { body: { id: personId, document }, authorization: "Bearer site-test-token", ip: "203.0.113.8" }), env);
+  assert.equal(inviteOnly.status, 401);
+  const correct = await worker.fetch(jsonRequest("/api/person", { body: { id: personId, document }, authorization: `Session ${accountToken}`, ip: "203.0.113.9" }), env);
   assert.equal(correct.status, 201);
   const payload = await correct.json();
   assert.equal(payload.person.digest, await digestDocument(document));
@@ -68,6 +71,7 @@ test("site authentication rejects wrong token and accepts correct first-person w
 test("Worker-backed reads return fresh encrypted repository files", async () => {
   resetRateLimitsForTests();
   const env = await workerEnv();
+  const accountToken = await createAccountToken(env, personId);
   const config = await encryptedDocument({ mom: "Fresh", weekLabel: "", announcement: "", secondaryAnnouncement: "" });
   const person = await encryptedDocument({ id: personId, name: "Fresh person", holidays: [] });
   const github = new MockGitHub({
@@ -82,7 +86,7 @@ test("Worker-backed reads return fresh encrypted repository files", async () => 
   assert.deepEqual((await bootstrap.json()).file.document, config);
 
   for (const [path, expected] of [["/api/index", { people: [personId] }], ["/api/config", config], [`/api/person/${personId}`, person]]) {
-    const response = await worker.fetch(jsonRequest(path, { method: "GET", authorization: "Bearer site-test-token" }), env);
+    const response = await worker.fetch(jsonRequest(path, { method: "GET", authorization: `Session ${accountToken}` }), env);
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).file.document, expected);
   }
@@ -110,6 +114,7 @@ test("Admin token can update encrypted MOM/config data", async () => {
 test("stale client update receives 409 and the latest encrypted document", async () => {
   resetRateLimitsForTests();
   const env = await workerEnv();
+  const accountToken = await createAccountToken(env, personId);
   const latest = await encryptedDocument({ id: personId, name: "Latest", holidays: [] });
   const ours = await encryptedDocument({ id: personId, name: "Ours", holidays: [] });
   const github = new MockGitHub({ [`data/people/${personId}.enc.json`]: latest });
@@ -117,10 +122,84 @@ test("stale client update receives 409 and the latest encrypted document", async
   const response = await worker.fetch(jsonRequest(`/api/person/${personId}`, {
     method: "PUT",
     body: { document: ours, expectedDigest: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
-    authorization: "Bearer site-test-token",
+    authorization: `Session ${accountToken}`,
     ip: "203.0.113.11",
   }), env);
   assert.equal(response.status, 409);
   const payload = await response.json();
   assert.deepEqual(payload.latest.document, latest);
+});
+
+test("account registration stores no name or reusable password verifier and supports personal login", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const name = "  Test   Person  ";
+  const canonicalName = "test person";
+  const accountPassword = "personal-password-for-tests";
+  const accountId = "44444444-4444-4444-8444-444444444444";
+  const teamSecrets = await deriveSecrets("team-password", makeKdf());
+  const accountSecrets = await deriveSecrets(accountPassword, makeKdf());
+  const envelope = await encryptJson({ version: 1, accountId, displayName: "Test Person", team: exportTeamAccess(teamSecrets) }, accountSecrets);
+  const github = new MockGitHub({ "data/index.json": { people: [] } });
+  const worker = createWorker(github.fetch);
+
+  const unknownLookup = await worker.fetch(jsonRequest("/api/account/lookup", { body: { name } }), env);
+  assert.equal(unknownLookup.status, 200);
+  assert.deepEqual(Object.keys(await unknownLookup.clone().json()), ["kdf"]);
+
+  const registration = await worker.fetch(jsonRequest("/api/account/register", {
+    body: { id: accountId, name, kdf: accountSecrets.kdf, verifier: accountSecrets.authToken, envelope },
+    authorization: "Bearer site-test-token",
+  }), env);
+  assert.equal(registration.status, 201);
+  const registered = await registration.json();
+  assert.match(registered.token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
+
+  const lookup = await accountLookupId(canonicalName, env);
+  const persisted = github.files.get(`data/accounts/${lookup}.json`).document;
+  assert.equal(persisted.verifierHash, await accountVerifierHash(accountSecrets.authToken, env));
+  assert.notEqual(persisted.verifierHash, accountSecrets.authToken);
+  assert.equal("envelope" in persisted, false);
+  assert.equal(persisted.wrappedEnvelope.cipher.name, "AES-GCM");
+  assert.notDeepEqual(persisted.wrappedEnvelope, envelope);
+  const publicText = JSON.stringify({ lookup, persisted });
+  assert.doesNotMatch(publicText, /Test Person|test person|personal-password-for-tests/u);
+
+  const duplicate = await worker.fetch(jsonRequest("/api/account/register", {
+    body: { id: "55555555-5555-4555-8555-555555555555", name: "TEST PERSON", kdf: accountSecrets.kdf, verifier: accountSecrets.authToken, envelope },
+    authorization: "Bearer site-test-token",
+  }), env);
+  assert.equal(duplicate.status, 409);
+
+  const realLookup = await worker.fetch(jsonRequest("/api/account/lookup", { body: { name: "test person" } }), env);
+  assert.deepEqual((await realLookup.json()).kdf, accountSecrets.kdf);
+  const wrongLogin = await worker.fetch(jsonRequest("/api/account/session", { body: { name, verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" } }), env);
+  assert.equal(wrongLogin.status, 401);
+  const login = await worker.fetch(jsonRequest("/api/account/session", { body: { name: "TEST PERSON", verifier: accountSecrets.authToken } }), env);
+  assert.equal(login.status, 200);
+  const session = await login.json();
+  assert.equal(session.accountId, accountId);
+  assert.deepEqual(session.envelope, envelope);
+
+  const read = await worker.fetch(jsonRequest("/api/index", { method: "GET", authorization: `Session ${session.token}` }), env);
+  assert.equal(read.status, 200);
+  assert.deepEqual((await read.json()).file.document, { people: [] });
+});
+
+test("account lookup and login attempts are rate limited", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const worker = createWorker(new MockGitHub().fetch);
+  let response;
+  for (let index = 0; index < 21; index += 1) response = await worker.fetch(jsonRequest("/api/account/lookup", { body: { name: "Unknown person" }, ip: "198.51.100.77" }), env);
+  assert.equal(response.status, 429);
+  assert.ok(Number(response.headers.get("retry-after")) > 0);
+});
+
+test("expired personal account sessions are rejected", async () => {
+  const env = await workerEnv();
+  const now = Date.now();
+  const expired = await createAccountToken(env, personId, now - 9 * 60 * 60 * 1000);
+  const request = jsonRequest("/api/index", { method: "GET", authorization: `Session ${expired}` });
+  assert.equal(await authorizeAccount(request, env, now), false);
 });

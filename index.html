@@ -16,18 +16,36 @@
     <main id="unlockView" class="unlock-view">
       <section class="unlock-card" aria-labelledby="unlockTitle">
         <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-        <p class="eyebrow">Team time away</p>
-        <h1 id="unlockTitle">A calmer way to plan time off.</h1>
-        <p class="unlock-copy">Enter the shared team password to open the holiday calendar.</p>
-        <form id="unlockForm" class="unlock-form" novalidate>
-          <label for="sitePassword">Team password</label>
-          <div class="password-row">
-            <input id="sitePassword" name="password" type="password" autocomplete="current-password" required maxlength="256" autofocus>
-            <button class="button button-primary" type="submit">Unlock</button>
-          </div>
-          <p id="unlockError" class="form-message" role="alert"></p>
-        </form>
-        <div class="privacy-note"><span aria-hidden="true">&#9679;</span> Protected information is decrypted only in this tab.</div>
+        <p class="eyebrow">Private team planner</p>
+        <h1 id="unlockTitle">Welcome to time away.</h1>
+        <p class="unlock-copy">Log in with your own account, or create one with the team invite password.</p>
+
+        <div class="auth-tabs" role="tablist" aria-label="Account access">
+          <button id="loginTab" class="auth-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="loginPanel">Log in</button>
+          <button id="createTab" class="auth-tab" type="button" role="tab" aria-selected="false" aria-controls="createPanel">Create account</button>
+        </div>
+
+        <section id="loginPanel" class="auth-panel" role="tabpanel" aria-labelledby="loginTab">
+          <form id="loginForm" class="auth-form" novalidate>
+            <div class="field"><label for="loginName">Your name</label><input id="loginName" name="username" type="text" autocomplete="username" maxlength="80" required autofocus placeholder="Enter your full name"></div>
+            <div class="field"><label for="loginPassword">Your password</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="256" required></div>
+            <p id="loginError" class="form-message" role="alert"></p>
+            <button class="button button-primary auth-submit" type="submit">Log in</button>
+          </form>
+        </section>
+
+        <section id="createPanel" class="auth-panel" role="tabpanel" aria-labelledby="createTab" hidden>
+          <form id="createForm" class="auth-form" novalidate>
+            <div class="field"><label for="createName">Your full name</label><input id="createName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter your full name"></div>
+            <div class="field"><label for="createPassword">Create a personal password</label><input id="createPassword" name="new-password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required><p class="field-hint">Use at least 12 characters. This password is never stored.</p></div>
+            <div class="field"><label for="confirmPassword">Confirm personal password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></div>
+            <div class="field invite-field"><label for="teamInvitePassword">Team invite password</label><input id="teamInvitePassword" type="password" autocomplete="off" maxlength="256" required><p class="field-hint">This is the existing shared team password. You need it only when creating the account.</p></div>
+            <p id="createError" class="form-message" role="alert"></p>
+            <button class="button button-primary auth-submit" type="submit">Create account</button>
+          </form>
+        </section>
+
+        <div class="privacy-note"><span aria-hidden="true">&#9679;</span> Passwords are never stored. Account and calendar files stay encrypted.</div>
       </section>
       <p class="unlock-footer">Private team planner &middot; Unlisted, not publicly indexed</p>
     </main>
@@ -39,8 +57,9 @@
           <div><p class="eyebrow">Team time away</p><p class="header-date" id="headerDate"></p></div>
         </div>
         <div class="header-actions">
+          <div class="account-chip" aria-label="Signed-in account"><span class="account-avatar" aria-hidden="true"></span><span id="signedInName"></span></div>
           <button id="adminButton" class="button button-quiet" type="button">Admin</button>
-          <button id="lockButton" class="button button-quiet" type="button">Lock</button>
+          <button id="lockButton" class="button button-quiet" type="button">Log out</button>
           <button id="addHolidayButton" class="button button-primary" type="button"><span aria-hidden="true">+</span> Add holiday</button>
         </div>
       </header>

@@ -1,4 +1,4 @@
-import { validateAnonymousIndex } from "./validation.js";
+import { ACCOUNT_LOOKUP_PATTERN, validateAccountRecord, validateAnonymousIndex } from "./validation.js";
 
 const encoder = new TextEncoder();
 
@@ -154,6 +154,25 @@ export class GitHubStore {
     const person = await this.get(path);
     if (person.digest !== await digestDocument(document)) throw new GitHubError("The new encrypted record could not be confirmed.");
     return { person, index };
+  }
+
+  async getAccount(lookup, { allowMissing = false } = {}) {
+    if (!ACCOUNT_LOOKUP_PATTERN.test(lookup ?? "")) throw new GitHubError("The account lookup is invalid.", 400);
+    const file = await this.get(`data/accounts/${lookup}.json`, { allowMissing });
+    if (!file) return null;
+    return { ...file, document: validateAccountRecord(file.document) };
+  }
+
+  async createAccount(lookup, record) {
+    const validated = validateAccountRecord(record);
+    if (await this.getAccount(lookup, { allowMissing: true })) throw new ConflictError(null, "An account with that name already exists.");
+    try {
+      await this.put(`data/accounts/${lookup}.json`, validated, "Create encrypted planner account");
+    } catch (error) {
+      if (error instanceof GitHubError && error.status === 409) throw new ConflictError(null, "An account with that name already exists.");
+      throw error;
+    }
+    return this.getAccount(lookup);
   }
 
   async deletePerson(id) {

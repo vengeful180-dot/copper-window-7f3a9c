@@ -1,6 +1,32 @@
-import { authorizeAdmin, authorizeSite, checkAdminRate, checkWriteRate, createAdminToken, verifyAdminPassword } from "./auth.js";
+import {
+  accountLookupId,
+  accountVerifierHash,
+  authorizeAccount,
+  authorizeAdmin,
+  authorizeSite,
+  checkAccountRate,
+  checkAdminRate,
+  checkWriteRate,
+  createAccountToken,
+  createAdminToken,
+  fakeAccountKdf,
+  fakeAccountVerifierHash,
+  verifyAccountVerifier,
+  verifyAdminPassword,
+  unwrapAccountEnvelope,
+  wrapAccountEnvelope,
+} from "./auth.js";
 import { ConflictError, GitHubError, GitHubStore } from "./github-store.js";
-import { InputError, readJsonBody, validateCreatePersonBody, validateEncryptedWriteBody, validatePersonId } from "./validation.js";
+import {
+  InputError,
+  readJsonBody,
+  validateAccountLoginBody,
+  validateAccountLookupBody,
+  validateAccountRegistrationBody,
+  validateCreatePersonBody,
+  validateEncryptedWriteBody,
+  validatePersonId,
+} from "./validation.js";
 
 const SECURITY_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -45,6 +71,11 @@ async function requireSite(request, env, { countWrite = true } = {}) {
   if (!await authorizeSite(request, env)) throw new InputError("Authentication failed.", 401);
 }
 
+async function requireAccount(request, env, { countWrite = true } = {}) {
+  if (countWrite) requireRate(checkWriteRate(request));
+  if (!await authorizeAccount(request, env)) throw new InputError("Your login session is invalid or expired.", 401);
+}
+
 async function requireAdmin(request, env) {
   requireRate(checkWriteRate(request));
   if (!await authorizeAdmin(request, env)) throw new InputError("Admin session is invalid or expired.", 401);
@@ -74,6 +105,51 @@ export function createWorker(fetchImpl = fetch) {
           return json(request, env, { file: await store().get("data/config.enc.json") });
         }
 
+        if (request.method === "POST" && url.pathname === "/api/account/lookup") {
+          const rate = checkAccountRate(request);
+          if (!rate.allowed) return json(request, env, { error: "Too many attempts. Try again later." }, 429, { "Retry-After": String(rate.retryAfter) });
+          const { canonicalName } = validateAccountLookupBody(await readJsonBody(request));
+          const lookup = await accountLookupId(canonicalName, env);
+          const account = await store().getAccount(lookup, { allowMissing: true });
+          return json(request, env, { kdf: account?.document.kdf ?? await fakeAccountKdf(canonicalName, env) });
+        }
+
+        if (request.method === "POST" && url.pathname === "/api/account/register") {
+          await requireSite(request, env);
+          const body = validateAccountRegistrationBody(await readJsonBody(request));
+          const lookup = await accountLookupId(body.canonicalName, env);
+          const account = await store().createAccount(lookup, {
+            version: 1,
+            id: body.id,
+            kdf: body.kdf,
+            verifierHash: await accountVerifierHash(body.verifier, env),
+            wrappedEnvelope: await wrapAccountEnvelope(body.envelope, env),
+          });
+          return json(request, env, {
+            token: await createAccountToken(env, body.id),
+            expiresIn: 8 * 60 * 60,
+            accountId: body.id,
+            envelope: body.envelope,
+          }, 201);
+        }
+
+        if (request.method === "POST" && url.pathname === "/api/account/session") {
+          const rate = checkAccountRate(request);
+          if (!rate.allowed) return json(request, env, { error: "Too many attempts. Try again later." }, 429, { "Retry-After": String(rate.retryAfter) });
+          const body = validateAccountLoginBody(await readJsonBody(request));
+          const lookup = await accountLookupId(body.canonicalName, env);
+          const account = await store().getAccount(lookup, { allowMissing: true });
+          const verifierHash = account?.document.verifierHash ?? await fakeAccountVerifierHash(body.canonicalName, env);
+          const authorized = await verifyAccountVerifier(body.verifier, verifierHash, env);
+          if (!account || !authorized) return json(request, env, { error: "Name or password is incorrect." }, 401);
+          return json(request, env, {
+            token: await createAccountToken(env, account.document.id),
+            expiresIn: 8 * 60 * 60,
+            accountId: account.document.id,
+            envelope: await unwrapAccountEnvelope(account.document.wrappedEnvelope, env),
+          });
+        }
+
         if (request.method === "POST" && url.pathname === "/api/admin/session") {
           const rate = checkAdminRate(request);
           if (!rate.allowed) return json(request, env, { error: "Too many attempts. Try again later." }, 429, { "Retry-After": String(rate.retryAfter) });
@@ -83,17 +159,17 @@ export function createWorker(fetchImpl = fetch) {
         }
 
         if (request.method === "GET" && url.pathname === "/api/index") {
-          await requireSite(request, env, { countWrite: false });
+          await requireAccount(request, env, { countWrite: false });
           return json(request, env, { file: await store().get("data/index.json") });
         }
 
         if (request.method === "GET" && url.pathname === "/api/config") {
-          await requireSite(request, env, { countWrite: false });
+          await requireAccount(request, env, { countWrite: false });
           return json(request, env, { file: await store().get("data/config.enc.json") });
         }
 
         if (request.method === "POST" && url.pathname === "/api/person") {
-          await requireSite(request, env);
+          await requireAccount(request, env);
           const body = validateCreatePersonBody(await readJsonBody(request));
           const result = await store().createPerson(body.id, body.document);
           return json(request, env, { ok: true, ...result }, 201);
@@ -101,12 +177,12 @@ export function createWorker(fetchImpl = fetch) {
 
         const personMatch = url.pathname.match(/^\/api\/person\/([^/]+)$/u);
         if (request.method === "GET" && personMatch) {
-          await requireSite(request, env, { countWrite: false });
+          await requireAccount(request, env, { countWrite: false });
           const id = validatePersonId(personMatch[1]);
           return json(request, env, { file: await store().get(`data/people/${id}.enc.json`) });
         }
         if (request.method === "PUT" && personMatch) {
-          await requireSite(request, env);
+          await requireAccount(request, env);
           const id = validatePersonId(personMatch[1]);
           const body = validateEncryptedWriteBody(await readJsonBody(request));
           const file = await store().updateEncrypted(`data/people/${id}.enc.json`, body.document, body.expectedDigest, "Update encrypted holiday record");

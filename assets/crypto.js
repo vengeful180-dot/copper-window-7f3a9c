@@ -41,8 +41,29 @@ export async function deriveSecrets(password, kdf) {
   const salt = validateKdf(kdf);
   const material = await crypto.subtle.importKey("raw", encoder.encode(password.normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
   const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: kdf.iterations }, material, 512));
-  const encryptionKey = await crypto.subtle.importKey("raw", bits.slice(0, 32), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
-  return { encryptionKey, authToken: toBase64Url(bits.slice(32)), kdf: { ...kdf } };
+  const dataKey = bits.slice(0, 32);
+  const encryptionKey = await crypto.subtle.importKey("raw", dataKey, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  return { encryptionKey, dataKey: toBase64Url(dataKey), authToken: toBase64Url(bits.slice(32)), kdf: { ...kdf } };
+}
+
+export function exportTeamAccess(secrets) {
+  const access = { version: 1, dataKey: secrets?.dataKey, kdf: { ...secrets?.kdf } };
+  validateTeamAccess(access);
+  return access;
+}
+
+export function validateTeamAccess(access) {
+  if (!access || typeof access !== "object" || Array.isArray(access) || access.version !== 1) throw new Error("Invalid team access key.");
+  if (typeof access.dataKey !== "string" || fromBase64Url(access.dataKey).length !== 32) throw new Error("Invalid team access key.");
+  validateKdf(access.kdf);
+  if (Object.keys(access).sort().join(",") !== "dataKey,kdf,version") throw new Error("Invalid team access key.");
+  return access;
+}
+
+export async function importTeamAccess(access) {
+  validateTeamAccess(access);
+  const encryptionKey = await crypto.subtle.importKey("raw", fromBase64Url(access.dataKey), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  return { encryptionKey, dataKey: access.dataKey, authToken: null, kdf: { ...access.kdf } };
 }
 
 export async function encryptJson(value, secrets) {

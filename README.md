@@ -1,6 +1,6 @@
 # Team Time Away
 
-A small-team holiday planner whose public GitHub repository contains only an anonymous index and AES-256-GCM ciphertext. The frontend is a static GitHub Pages site. A narrow Cloudflare Worker authenticates writes and commits only permitted encrypted data files back to GitHub.
+A small-team holiday planner whose public GitHub repository contains only anonymous identifiers, password verifiers protected by a Worker-only pepper, and AES-256-GCM ciphertext. The frontend is a static GitHub Pages site. A narrow Cloudflare Worker authenticates personal accounts and commits only permitted encrypted files back to GitHub.
 
 The repository starts with **zero people**. The first holiday entered for a normalized name creates a UUID person record automatically; later capitalization or whitespace variations reuse that record.
 
@@ -8,12 +8,14 @@ The repository starts with **zero people**. The first holiday entered for a norm
 
 ```text
 Browser on GitHub Pages
-  ├─ derives an AES-256 key + write credential with PBKDF2-SHA-256
-  ├─ downloads data/index.json (UUIDs only)
-  ├─ downloads and decrypts data/config.enc.json + data/people/*.enc.json
-  └─ sends fresh ciphertext to the Worker for writes
+  ├─ creates or logs into a personal name + password account
+  ├─ unwraps the shared AES-256 team key locally
+  ├─ downloads and decrypts the anonymous holiday files
+  └─ sends fresh ciphertext with a short-lived account session for writes
 
 Cloudflare Worker
+  ├─ maps normalized names to opaque HMAC identifiers
+  ├─ verifies peppered password proofs and signs 8-hour sessions
   ├─ enforces exact-origin CORS, request limits, and authentication
   ├─ validates encrypted envelopes without decrypting them
   ├─ retries anonymous-index SHA conflicts with a UUID-set merge
@@ -25,7 +27,7 @@ GitHub
   └─ deploys the static site through GitHub Actions / Pages
 ```
 
-There is no SQL service, account directory, or traditional database. The Worker never needs employee names, dates, MOM, or announcements in plaintext.
+There is no SQL service or traditional database. Account records are files under `data/accounts/`; their filenames are opaque keyed hashes. Their names/team keys are encrypted with each person's password, and that entire envelope receives a second Worker-only AES-GCM layer before GitHub stores it. The Worker never receives decrypted employee names, dates, MOM, or announcements. A normalized name is visible to the Worker only during account lookup, registration, and login, and is never written to GitHub.
 
 ## Protected file format
 
@@ -36,9 +38,11 @@ There is no SQL service, account directory, or traditional database. The Worker 
 - a fresh random 96-bit GCM nonce for every save;
 - an authenticated context string identifying this application and format version.
 
-The shared site password is never stored. PBKDF2 derives 512 bits: one 256-bit half becomes the AES key and the other becomes a high-entropy write credential. The Worker stores only a SHA-256 verifier for that credential. The separate, randomly generated Admin password is checked against an HMAC-SHA-256 verifier using a private server-side salt, then exchanged for a signed 15-minute in-memory Admin session token. The fast verifier keeps authentication within the Cloudflare Workers Free CPU allowance; Admin attempts remain rate limited.
+The original shared site password becomes the **team invite password**. It is needed only when creating an account and is never stored. Account creation wraps the existing team AES key in a separate AES-256-GCM envelope derived from the person's password. Login unwraps that key locally, so different personal passwords open the same encrypted calendar.
 
-Decrypted data and derived keys remain in JavaScript memory only. Locking or closing the tab discards them. The app does not use localStorage or sessionStorage.
+PBKDF2 derives 512 bits for each personal password: one 256-bit half encrypts the account envelope and the other becomes a high-entropy login proof. Before the proof is written to GitHub, the Worker peppers it with private HMAC key material. The Worker also encrypts the account envelope with a separate private storage key. Public account files therefore contain neither a usable verifier nor password-testable ciphertext. The separate Admin password is checked against an HMAC-SHA-256 verifier and exchanged for a signed 15-minute Admin session.
+
+Decrypted calendar records remain in JavaScript memory only. The current tab may retain the signed session and derived team key in `sessionStorage` so a refresh does not log the person out; closing the tab or choosing **Log out** discards it. The app never uses persistent `localStorage` and never stores either password.
 
 ## Local development
 
@@ -69,7 +73,7 @@ npm run check
 2. In repository **Settings → Pages**, choose **GitHub Actions** as the source. The `Deploy GitHub Pages` workflow builds and deploys `dist/`.
 3. Create a fine-grained GitHub token restricted to this one repository with only **Contents: Read and write** and **Metadata: Read**. Store it as the repository secret `PLANNER_DATA_TOKEN`; never place it in a file or frontend variable. The deployment maps it to the Worker's internal `GITHUB_DATA_TOKEN` binding.
 4. Create a Cloudflare API token limited to the target account with **Workers Scripts: Edit**. Store `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub repository secrets.
-5. Copy the generated verifier values from `.dev.vars` into GitHub secrets: `SITE_AUTH_TOKEN_HASH`, `ADMIN_PASSWORD_HASH`, `ADMIN_PASSWORD_SALT`, and `ADMIN_SESSION_SECRET`.
+5. Copy the generated verifier values from `.dev.vars` into GitHub secrets: `SITE_AUTH_TOKEN_HASH`, `ADMIN_PASSWORD_HASH`, `ADMIN_PASSWORD_SALT`, `ADMIN_SESSION_SECRET`, `ACCOUNT_LOOKUP_SECRET`, `ACCOUNT_SESSION_SECRET`, and `ACCOUNT_STORAGE_SECRET`.
 6. Add repository variable `PAGES_ORIGIN` as the origin only, such as `https://owner.github.io` (no repository path). Run **Deploy secure write gateway** once.
 7. The Worker workflow verifies `/health`, passes the resulting `https://…workers.dev` URL directly to a fresh Pages deployment, and connects the frontend automatically. Also store that stable URL as the repository variable `WORKER_API_URL` so later `main` pushes retain the connection. The frontend build points protected reads at the raw `main/data/` path for the current repository.
 
@@ -85,6 +89,9 @@ For a custom Worker domain, also add that exact origin to the `connect-src` poli
 | `ADMIN_PASSWORD_HASH` | Verifies the Admin password | Yes |
 | `ADMIN_PASSWORD_SALT` | Private key material for the Admin verifier | Yes |
 | `ADMIN_SESSION_SECRET` | Signs short-lived Admin sessions | Yes |
+| `ACCOUNT_LOOKUP_SECRET` | Hides normalized account names and peppers password proofs | Yes |
+| `ACCOUNT_SESSION_SECRET` | Signs short-lived personal account sessions | Yes |
+| `ACCOUNT_STORAGE_SECRET` | Adds Worker-only encryption around account envelopes | Yes |
 | `GITHUB_DATA_TOKEN` | Commits permitted files | Yes |
 | `GITHUB_OWNER` | Repository owner | Treat as runtime configuration |
 | `GITHUB_REPO` | Repository name | Treat as runtime configuration |
@@ -96,7 +103,7 @@ Do not grant the data token access to other repositories, workflows, issues, pul
 
 ## Password changes
 
-### Shared site password
+### Team invite password
 
 Use a short maintenance window because the ciphertext and Worker verifier must move together. Start from a clean, current checkout and set the old and new passwords only in the current process environment:
 
@@ -107,7 +114,11 @@ npm run data:rotate-password
 Remove-Item Env:OLD_SITE_PASSWORD, Env:NEW_SITE_PASSWORD
 ```
 
-This decrypts locally, creates a new random KDF salt, and re-encrypts every protected file with fresh nonces. It writes the new `SITE_AUTH_TOKEN_HASH` to the git-ignored `.rotation-secrets.txt`. Update the Worker secret, commit only the encrypted data files, and deploy Pages. Never commit either password or the rotation file.
+This decrypts locally, creates a new random KDF salt, and re-encrypts every protected holiday file with fresh nonces. It writes the new `SITE_AUTH_TOKEN_HASH` to the git-ignored `.rotation-secrets.txt`. Existing personal account envelopes wrap the old team key, so rotate or recreate the accounts during the same maintenance window before switching the encrypted data. Never commit either password or the rotation file.
+
+### Personal account passwords
+
+Personal passwords are intentionally unrecoverable: the service never stores them. If a person forgets one, an Admin should remove that opaque account file and the person can create the account again with the team invite password. Their holiday record is separate and remains intact. A self-service password-change flow is not included in this small deployment.
 
 ### Admin password
 
@@ -143,11 +154,13 @@ Every encrypted update includes a digest of the version the browser decrypted. T
 ## Security notes
 
 - The Pages URL is intentionally unlisted with `noindex,nofollow,noarchive` and a deny-all `robots.txt`; this does **not** make the URL private.
-- The HTML shell contains no protected values. Wrong passwords reveal only a generic error.
+- The HTML shell contains no protected values. Wrong account names and passwords return the same generic error.
+- Account names are normalized case-insensitively, transformed into Worker-keyed opaque filenames, and encrypted inside the account envelope.
+- Account lookup and login attempts are rate limited; personal sessions expire after eight hours and Admin sessions after 15 minutes.
 - The Worker requires HTTPS in production, exact-origin CORS, bounded JSON bodies, strict UUID paths, known encrypted-envelope fields, and short-lived Admin sessions.
 - Admin password attempts are limited to five per 15-minute window per observed IP in each Worker isolate. Cloudflare account-level rate limiting/WAF can add a globally coordinated layer without changing application data storage.
 - The application creates DOM nodes with `textContent`; it does not inject user-controlled HTML.
-- The included security check scans for credential patterns, unsafe DOM insertion, persistent browser storage, plaintext protected data, and unexpected encrypted-file shapes.
+- The included security check scans for credential patterns, unsafe DOM insertion, persistent local browser storage, plaintext protected data, and unexpected person/account envelope shapes.
 
 ## Data layout
 
@@ -159,6 +172,8 @@ data/
   config.enc.json
   people/
     <uuid>.enc.json
+  accounts/
+    <opaque-hmac>.json
 worker/
   src/
   wrangler.toml

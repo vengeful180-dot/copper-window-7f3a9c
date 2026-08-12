@@ -13,11 +13,12 @@ export function apiConfigured() {
   return Boolean(RUNTIME_CONFIG.apiBaseUrl);
 }
 
-async function request(path, { method = "GET", body, siteToken, adminToken } = {}) {
+async function request(path, { method = "GET", body, siteToken, sessionToken, adminToken } = {}) {
   if (!apiConfigured()) throw new ApiError("Secure writes are not connected yet.", 503);
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (siteToken) headers.Authorization = `Bearer ${siteToken}`;
+  if (sessionToken) headers.Authorization = `Session ${sessionToken}`;
   if (adminToken) headers.Authorization = `Admin ${adminToken}`;
   let response;
   try {
@@ -40,11 +41,14 @@ async function request(path, { method = "GET", body, siteToken, adminToken } = {
 export const api = {
   health: () => request("/health"),
   bootstrapConfig: () => request("/bootstrap/config"),
-  readIndex: (siteToken) => request("/api/index", { siteToken }),
-  readConfig: (siteToken) => request("/api/config", { siteToken }),
-  readPerson: (id, siteToken) => request(`/api/person/${encodeURIComponent(id)}`, { siteToken }),
-  createPerson: (body, siteToken) => request("/api/person", { method: "POST", body, siteToken }),
-  updatePerson: (id, body, siteToken) => request(`/api/person/${encodeURIComponent(id)}`, { method: "PUT", body, siteToken }),
+  accountLookup: (name) => request("/api/account/lookup", { method: "POST", body: { name } }),
+  accountRegister: (body, siteToken) => request("/api/account/register", { method: "POST", body, siteToken }),
+  accountSession: (body) => request("/api/account/session", { method: "POST", body }),
+  readIndex: (sessionToken) => request("/api/index", { sessionToken }),
+  readConfig: (sessionToken) => request("/api/config", { sessionToken }),
+  readPerson: (id, sessionToken) => request(`/api/person/${encodeURIComponent(id)}`, { sessionToken }),
+  createPerson: (body, sessionToken) => request("/api/person", { method: "POST", body, sessionToken }),
+  updatePerson: (id, body, sessionToken) => request(`/api/person/${encodeURIComponent(id)}`, { method: "PUT", body, sessionToken }),
   adminSession: (password) => request("/api/admin/session", { method: "POST", body: { password } }),
   updateConfig: (body, adminToken) => request("/api/admin/config", { method: "PUT", body, adminToken }),
   adminUpdatePerson: (id, body, adminToken) => request(`/api/admin/person/${encodeURIComponent(id)}`, { method: "PUT", body, adminToken }),

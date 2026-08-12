@@ -1,8 +1,12 @@
 const encoder = new TextEncoder();
 const adminAttempts = new Map();
+const accountAttempts = new Map();
 const writeAttempts = new Map();
 const ADMIN_WINDOW_MS = 15 * 60 * 1000;
+const ACCOUNT_WINDOW_MS = 15 * 60 * 1000;
 const WRITE_WINDOW_MS = 60 * 1000;
+const ACCOUNT_SESSION_MS = 8 * 60 * 60 * 1000;
+const ACCOUNT_STORAGE_CONTEXT = encoder.encode("quiet-leave-account-storage:v1");
 
 function base64UrlToBytes(value) {
   const base64 = String(value).replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(String(value).length / 4) * 4, "=");
@@ -13,6 +17,12 @@ function bytesToBase64Url(bytes) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 function timingSafeEqual(a, b) {
@@ -49,6 +59,10 @@ export function checkAdminRate(request) {
   return consumeRate(adminAttempts, requestKey(request, "admin"), 5, ADMIN_WINDOW_MS);
 }
 
+export function checkAccountRate(request) {
+  return consumeRate(accountAttempts, requestKey(request, "account"), 20, ACCOUNT_WINDOW_MS);
+}
+
 export function checkWriteRate(request) {
   return consumeRate(writeAttempts, requestKey(request, "write"), 90, WRITE_WINDOW_MS);
 }
@@ -73,6 +87,66 @@ async function hmac(value, secret, minimumBytes = 32) {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
 }
 
+export async function accountLookupId(canonicalName, env) {
+  return bytesToBase64Url(await hmac(`lookup:${canonicalName}`, env.ACCOUNT_LOOKUP_SECRET));
+}
+
+export async function fakeAccountKdf(canonicalName, env) {
+  const salt = (await hmac(`kdf:${canonicalName}`, env.ACCOUNT_LOOKUP_SECRET)).slice(0, 16);
+  return { name: "PBKDF2", hash: "SHA-256", iterations: 310_000, salt: bytesToBase64(salt) };
+}
+
+export async function fakeAccountVerifierHash(canonicalName, env) {
+  return bytesToBase64Url(await hmac(`fake-verifier:${canonicalName}`, env.ACCOUNT_LOOKUP_SECRET));
+}
+
+export async function accountVerifierHash(verifier, env) {
+  return bytesToBase64Url(await hmac(`account-verifier:${verifier}`, env.ACCOUNT_LOOKUP_SECRET));
+}
+
+export async function verifyAccountVerifier(verifier, verifierHash, env) {
+  return timingSafeEqual(await accountVerifierHash(verifier, env), verifierHash);
+}
+
+async function accountStorageKey(env) {
+  const keyBytes = await hmac("account-storage-key:v1", env.ACCOUNT_STORAGE_SECRET);
+  return crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+export async function wrapAccountEnvelope(envelope, env) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = encoder.encode(JSON.stringify(envelope));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: ACCOUNT_STORAGE_CONTEXT, tagLength: 128 }, await accountStorageKey(env), plaintext);
+  return { version: 1, cipher: { name: "AES-GCM", iv: bytesToBase64Url(iv), data: bytesToBase64Url(new Uint8Array(encrypted)) } };
+}
+
+export async function unwrapAccountEnvelope(wrapped, env) {
+  const iv = base64UrlToBytes(wrapped.cipher.iv);
+  const data = base64UrlToBytes(wrapped.cipher.data);
+  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: ACCOUNT_STORAGE_CONTEXT, tagLength: 128 }, await accountStorageKey(env), data);
+  return JSON.parse(new TextDecoder().decode(plaintext));
+}
+
+export async function createAccountToken(env, accountId, now = Date.now()) {
+  const payload = bytesToBase64Url(encoder.encode(JSON.stringify({ exp: now + ACCOUNT_SESSION_MS, sub: accountId, scope: "account", nonce: crypto.randomUUID() })));
+  const signature = bytesToBase64Url(await hmac(`account:${payload}`, env.ACCOUNT_SESSION_SECRET));
+  return `${payload}.${signature}`;
+}
+
+export async function authorizeAccount(request, env, now = Date.now()) {
+  const value = request.headers.get("authorization") || "";
+  const token = value.startsWith("Session ") ? value.slice(8) : "";
+  const [payload, signature, extra] = token.split(".");
+  if (!payload || !signature || extra || token.length > 512) return false;
+  const expected = await hmac(`account:${payload}`, env.ACCOUNT_SESSION_SECRET).catch(() => new Uint8Array());
+  if (!timingSafeEqual(expected, base64UrlToBytes(signature))) return false;
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payload)));
+    return parsed.scope === "account" && typeof parsed.sub === "string" && typeof parsed.nonce === "string"
+      && Number.isFinite(parsed.exp) && parsed.exp >= now && parsed.exp <= now + ACCOUNT_SESSION_MS + 60_000;
+  } catch { return false; }
+}
+
 export async function createAdminToken(env, now = Date.now()) {
   const payload = bytesToBase64Url(encoder.encode(JSON.stringify({ exp: now + 15 * 60 * 1000, nonce: crypto.randomUUID() })));
   const signature = bytesToBase64Url(await hmac(payload, env.ADMIN_SESSION_SECRET));
@@ -95,5 +169,6 @@ export async function authorizeAdmin(request, env, now = Date.now()) {
 
 export function resetRateLimitsForTests() {
   adminAttempts.clear();
+  accountAttempts.clear();
   writeAttempts.clear();
 }

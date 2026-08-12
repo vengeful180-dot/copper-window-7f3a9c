@@ -48,6 +48,9 @@ jobs:
           ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
           ADMIN_PASSWORD_SALT: ${{ secrets.ADMIN_PASSWORD_SALT }}
           ADMIN_SESSION_SECRET: ${{ secrets.ADMIN_SESSION_SECRET }}
+          ACCOUNT_LOOKUP_SECRET: ${{ secrets.ACCOUNT_LOOKUP_SECRET }}
+          ACCOUNT_SESSION_SECRET: ${{ secrets.ACCOUNT_SESSION_SECRET }}
+          ACCOUNT_STORAGE_SECRET: ${{ secrets.ACCOUNT_STORAGE_SECRET }}
           GITHUB_DATA_TOKEN: ${{ secrets.PLANNER_DATA_TOKEN }}
           GITHUB_OWNER: ${{ github.repository_owner }}
           GITHUB_REPO: ${{ github.event.repository.name }}
@@ -58,11 +61,14 @@ jobs:
             --arg admin "$ADMIN_PASSWORD_HASH" \
             --arg salt "$ADMIN_PASSWORD_SALT" \
             --arg session "$ADMIN_SESSION_SECRET" \
+            --arg account_lookup "$ACCOUNT_LOOKUP_SECRET" \
+            --arg account_session "$ACCOUNT_SESSION_SECRET" \
+            --arg account_storage "$ACCOUNT_STORAGE_SECRET" \
             --arg token "$GITHUB_DATA_TOKEN" \
             --arg owner "$GITHUB_OWNER" \
             --arg repo "$GITHUB_REPO" \
             --arg origin "$ALLOWED_ORIGIN" \
-            '{SITE_AUTH_TOKEN_HASH:$site,ADMIN_PASSWORD_HASH:$admin,ADMIN_PASSWORD_SALT:$salt,ADMIN_SESSION_SECRET:$session,GITHUB_DATA_TOKEN:$token,GITHUB_OWNER:$owner,GITHUB_REPO:$repo,ALLOWED_ORIGIN:$origin}' \
+            '{SITE_AUTH_TOKEN_HASH:$site,ADMIN_PASSWORD_HASH:$admin,ADMIN_PASSWORD_SALT:$salt,ADMIN_SESSION_SECRET:$session,ACCOUNT_LOOKUP_SECRET:$account_lookup,ACCOUNT_SESSION_SECRET:$account_session,ACCOUNT_STORAGE_SECRET:$account_storage,GITHUB_DATA_TOKEN:$token,GITHUB_OWNER:$owner,GITHUB_REPO:$repo,ALLOWED_ORIGIN:$origin}' \
             > worker-secrets.json
           npx wrangler secret bulk worker-secrets.json --config worker/wrangler.toml
           rm -f worker-secrets.json

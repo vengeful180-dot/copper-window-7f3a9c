@@ -6,9 +6,15 @@ const output = path.join(root, "dist");
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 
-for (const entry of ["index.html", "robots.txt", "assets", "data"]) {
+for (const entry of ["index.html", "robots.txt", "assets"]) {
   await cp(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
+
+await mkdir(path.join(output, "data", "people"), { recursive: true });
+for (const file of ["index.json", "config.enc.json"]) {
+  await cp(path.join(root, "data", file), path.join(output, "data", file));
+}
+await cp(path.join(root, "data", "people"), path.join(output, "data", "people"), { recursive: true });
 
 const runtimePath = path.join(output, "assets", "runtime-config.js");
 let runtime = await readFile(runtimePath, "utf8");
