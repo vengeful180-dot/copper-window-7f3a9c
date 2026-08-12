@@ -1,4 +1,4 @@
-import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-login-fix";
+import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-header-fix";
 import {
   decryptJson,
   deriveSecrets,
@@ -8,7 +8,7 @@ import {
   importTeamAccess,
   makeKdf,
   unlockJson,
-} from "./crypto.js?v=20260812-login-fix";
+} from "./crypto.js?v=20260812-header-fix";
 import {
   assertConfigRecord,
   assertPersonRecord,
@@ -32,7 +32,7 @@ import {
   toIsoDate,
   twoWorkWeeks,
   validateHolidayInput,
-} from "./model.js?v=20260812-login-fix";
+} from "./model.js?v=20260812-header-fix";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MIN_ACCOUNT_PASSWORD_LENGTH = 8;
@@ -54,6 +54,8 @@ const state = {
   currentView: "home",
   month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   adminToken: null,
+  adminExpiresAt: 0,
+  adminExpiryTimer: null,
   adminConfigBase: null,
   overlapConfirmation: null,
   datePickerTarget: null,
@@ -467,6 +469,28 @@ async function checkBackend() {
   }
 }
 
+function clearAdminSession({ prompt = false } = {}) {
+  if (state.adminExpiryTimer !== null) window.clearTimeout(state.adminExpiryTimer);
+  state.adminToken = null;
+  state.adminExpiresAt = 0;
+  state.adminExpiryTimer = null;
+  $("editHomeButton").hidden = true;
+  if (prompt && $("adminDialog").open) {
+    $("adminPanel").hidden = true;
+    $("adminLoginForm").hidden = false;
+    $("adminLoginMessage").textContent = "The Admin session expired. Enter the password again.";
+  }
+}
+
+function beginAdminSession(token, expiresIn) {
+  clearAdminSession();
+  const lifetimeMs = Math.max(1, Number(expiresIn) || 900) * 1000;
+  state.adminToken = token;
+  state.adminExpiresAt = Date.now() + lifetimeMs;
+  $("editHomeButton").hidden = false;
+  state.adminExpiryTimer = window.setTimeout(() => clearAdminSession({ prompt: true }), lifetimeMs);
+}
+
 function lockPlanner() {
   for (const dialog of document.querySelectorAll("dialog[open]")) dialog.close();
   clearStoredSession();
@@ -483,7 +507,7 @@ function lockPlanner() {
   state.presence = { version: 1, members: [] };
   state.presenceMeta = null;
   state.currentView = "home";
-  state.adminToken = null;
+  clearAdminSession();
   state.adminConfigBase = null;
   state.overlapConfirmation = null;
   $("momValue").textContent = "";
@@ -512,7 +536,6 @@ function setView(requestedView, { updateHash = true } = {}) {
   $("homePage").hidden = view !== "home";
   $("holidaysPage").hidden = view !== "holidays";
   $("workPage").hidden = view !== "work";
-  $("addHolidayButton").hidden = view !== "holidays";
   for (const [name, id] of [["home", "navHome"], ["holidays", "navHolidays"], ["work", "navWork"]]) {
     const button = $(id);
     const active = name === view;
@@ -912,7 +935,7 @@ async function commitPersonMutation(personId, mutate, { admin = false } = {}) {
         meta = error.details.latest;
         continue;
       }
-      if (error instanceof ApiError && error.status === 401 && admin) state.adminToken = null;
+      if (error instanceof ApiError && error.status === 401 && admin) clearAdminSession({ prompt: true });
       throw error;
     }
   }
@@ -1046,9 +1069,11 @@ function openAdmin() {
     showToast("Admin controls need the secure write service.", "error");
     return;
   }
+  if (state.adminToken && state.adminExpiresAt <= Date.now()) clearAdminSession();
   $("adminLoginMessage").textContent = "";
   if (state.adminToken) showAdminPanel();
   else {
+    $("editHomeButton").hidden = true;
     $("adminLoginForm").hidden = false;
     $("adminPanel").hidden = true;
   }
@@ -1059,6 +1084,7 @@ function openAdmin() {
 function showAdminPanel() {
   $("adminLoginForm").hidden = true;
   $("adminPanel").hidden = false;
+  $("editHomeButton").hidden = !state.adminToken;
   $("groupNameInput").value = state.config.groupName;
   $("momInput").value = state.config.mom;
   renderAdminLinks();
@@ -1110,7 +1136,7 @@ async function adminLogin(event) {
   setButtonBusy(button, true, "Checking…", "Continue");
   try {
     const response = await api.adminSession(password);
-    state.adminToken = response.token;
+    beginAdminSession(response.token, response.expiresIn);
     $("adminPassword").value = "";
     showAdminPanel();
   } catch (error) {
@@ -1176,7 +1202,7 @@ async function saveConfig(event) {
           meta = error.details.latest;
           continue;
         }
-        if (error instanceof ApiError && error.status === 401) state.adminToken = null;
+        if (error instanceof ApiError && error.status === 401) clearAdminSession({ prompt: true });
         throw error;
       }
     }
@@ -1256,7 +1282,7 @@ async function deletePerson(personId) {
     renderAll();
     showToast(`${person.name} was deleted.`);
   } catch (error) {
-    if (error instanceof ApiError && error.status === 401) state.adminToken = null;
+    if (error instanceof ApiError && error.status === 401) clearAdminSession({ prompt: true });
     showToast(error.message || "The person could not be deleted.", "error");
   }
 }

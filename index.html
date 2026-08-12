@@ -8,7 +8,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:8787 http://localhost:8787 https://raw.githubusercontent.com https://*.workers.dev; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
     <meta name="theme-color" content="#f4f1eb">
     <title>Team Time Away</title>
-    <link rel="stylesheet" href="assets/styles.css?v=20260812-login-fix">
+    <link rel="stylesheet" href="assets/styles.css?v=20260812-header-fix">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -65,7 +65,7 @@
           <div class="account-chip" aria-label="Signed-in account"><span class="account-avatar" aria-hidden="true"></span><span id="signedInName"></span></div>
           <button id="adminButton" class="button button-quiet" type="button">Admin</button>
           <button id="lockButton" class="button button-quiet" type="button">Log out</button>
-          <button id="addHolidayButton" class="button button-primary" type="button" hidden><span aria-hidden="true">+</span> Add holiday</button>
+          <button id="addHolidayButton" class="button button-primary" type="button"><span aria-hidden="true">+</span> Add holiday</button>
         </div>
       </header>
 
@@ -75,7 +75,7 @@
         <section id="homePage" class="page-view portal-page" aria-labelledby="homeTitle">
           <div class="portal-hero">
             <div><p class="eyebrow">Private team space</p><h1 id="homeTitle"><span id="homeGroupName">Dream Team</span>, all in one place.</h1><p>Jump into the team calendar, plan where you are working, or open one of your shared shortcuts.</p></div>
-            <button id="editHomeButton" class="button button-secondary" type="button">Edit homepage</button>
+            <button id="editHomeButton" class="button button-secondary" type="button" hidden>Edit homepage</button>
           </div>
 
           <div class="portal-grid">
@@ -180,6 +180,6 @@
     </dialog>
 
     <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="assets/app.js?v=20260812-login-fix"></script>
+    <script type="module" src="assets/app.js?v=20260812-header-fix"></script>
   </body>
 </html>

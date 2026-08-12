@@ -54,6 +54,30 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
 
+test("header navigation stays truly centered and stable between pages", async () => {
+  const [html, app, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(styles, /grid-template-columns:\s*minmax\(0, 1fr\) auto minmax\(0, 1fr\)/u);
+  assert.match(styles, /\.app-nav\s*\{[^}]*justify-self:\s*center/u);
+  assert.match(styles, /grid-template-areas:\s*"brand actions" "nav nav"/u);
+  assert.match(html, /id="addHolidayButton"[^>]*type="button"(?![^>]*hidden)/u);
+  assert.doesNotMatch(app, /\$\("addHolidayButton"\)\.hidden/u);
+});
+
+test("homepage editing is visible only during a live Admin session", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="editHomeButton"[^>]*hidden/u);
+  assert.match(app, /function clearAdminSession[\s\S]*?\$\("editHomeButton"\)\.hidden = true;/u);
+  assert.match(app, /function beginAdminSession[\s\S]*?\$\("editHomeButton"\)\.hidden = false;/u);
+  assert.match(app, /setTimeout\(\(\) => clearAdminSession\(\{ prompt: true \}\), lifetimeMs\)/u);
+});
+
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
   const build = await readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8");
   assert.match(build, /\["index\.html", "robots\.txt", "assets"\]/u);

@@ -1,4 +1,4 @@
-import { RUNTIME_CONFIG } from "./runtime-config.js?v=20260812-login-fix";
+import { RUNTIME_CONFIG } from "./runtime-config.js?v=20260812-header-fix";
 
 export class ApiError extends Error {
   constructor(message, status = 0, details = null) {

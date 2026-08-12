@@ -85,8 +85,10 @@ input[readonly] { background: #efeee9; color: var(--muted); }
 .icon-button { width: 42px; height: 42px; border-radius: 11px; background: #fff; border: 1px solid var(--line); font-size: 1.1rem; }
 
 .app-shell { min-height: 100vh; }
-.app-header { min-height: 74px; padding: 12px clamp(16px, 3.5vw, 52px); display: flex; justify-content: space-between; align-items: center; gap: 18px; border-bottom: 1px solid var(--line); background: rgba(251,250,247,.9); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(16px); }
+.app-header { min-height: 74px; padding: 12px clamp(16px, 3.5vw, 52px); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "brand nav actions"; align-items: center; gap: 18px; border-bottom: 1px solid var(--line); background: rgba(251,250,247,.9); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(16px); }
 .brand-inline, .header-actions { display: flex; align-items: center; gap: 12px; }
+.brand-inline { grid-area: brand; justify-self: start; }
+.header-actions { grid-area: actions; justify-self: end; }
 .account-chip { max-width: 220px; min-height: 38px; display: flex; align-items: center; gap: 9px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font-size: .76rem; font-weight: 740; }
 .account-chip > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-avatar { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(145deg, var(--green), #78a98f); box-shadow: inset 0 0 0 5px rgba(255,255,255,.72); }
@@ -207,7 +209,7 @@ input[readonly] { background: #efeee9; color: var(--muted); }
 .toast.error { background: #792e2b; }
 
 .brand-home { border: 0; background: transparent; padding: 0; color: inherit; text-align: left; cursor: pointer; }
-.app-nav { display: flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 13px; background: #eeece6; }
+.app-nav { grid-area: nav; justify-self: center; width: max-content; max-width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 13px; background: #eeece6; }
 .nav-button { min-height: 34px; border: 0; border-radius: 9px; padding: 7px 13px; background: transparent; color: var(--muted); cursor: pointer; font-size: .76rem; font-weight: 750; transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease; }
 .nav-button:hover { color: var(--ink); }
 .nav-button.is-active { background: #fff; color: var(--green-dark); box-shadow: 0 4px 12px rgba(37,45,40,.09); }
@@ -352,10 +354,9 @@ button.work-status:hover { transform: translateY(-1px); filter: saturate(1.15); 
   .work-table { min-width: 720px; }
 }
 
-@media (max-width: 980px) {
-  .app-header { flex-wrap: wrap; }
-  .app-nav { order: 3; width: 100%; justify-content: center; }
-  .nav-button { flex: 1; max-width: 180px; }
+@media (max-width: 1180px) {
+  .app-header { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand actions" "nav nav"; row-gap: 10px; }
+  .app-nav { justify-self: center; }
   .portal-hero { grid-template-columns: 1fr; align-items: end; }
   .portal-hero .button { justify-self: start; }
   .quick-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -372,8 +373,8 @@ button.work-status:hover { transform: translateY(-1px); filter: saturate(1.15); 
   .mom-card { grid-template-columns: 1fr; gap: 16px; padding: 22px; }
   .quick-links-card { padding: 22px; }
   .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .app-nav { overflow-x: auto; justify-content: flex-start; }
-  .nav-button { flex: 0 0 auto; max-width: none; }
+  .app-nav { width: min(100%, 405px); overflow-x: auto; justify-content: center; }
+  .nav-button { flex: 1 1 0; min-width: max-content; max-width: none; }
   .work-week-card { padding: 16px 13px; }
   .admin-link-row { grid-template-columns: 28px 1fr; }
   .admin-link-row .field:last-child { grid-column: 2; }
