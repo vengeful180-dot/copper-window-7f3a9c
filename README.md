@@ -67,7 +67,7 @@ npm run check
 
 1. Create a public repository with a non-obvious name and push `main`. A public repository is normally needed for no-cost GitHub Pages; encryption, not obscurity, protects the data.
 2. In repository **Settings → Pages**, choose **GitHub Actions** as the source. The `Deploy GitHub Pages` workflow builds and deploys `dist/`.
-3. Create a fine-grained GitHub token restricted to this one repository with only **Contents: Read and write** and **Metadata: Read**. Store it as the repository secret `GITHUB_DATA_TOKEN`; never place it in a file or frontend variable.
+3. Create a fine-grained GitHub token restricted to this one repository with only **Contents: Read and write** and **Metadata: Read**. Store it as the repository secret `PLANNER_DATA_TOKEN`; never place it in a file or frontend variable. The deployment maps it to the Worker's internal `GITHUB_DATA_TOKEN` binding.
 4. Create a Cloudflare API token limited to the target account with **Workers Scripts: Edit**. Store `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub repository secrets.
 5. Copy the generated verifier values from `.dev.vars` into GitHub secrets: `SITE_AUTH_TOKEN_HASH`, `ADMIN_PASSWORD_HASH`, `ADMIN_PASSWORD_SALT`, and `ADMIN_SESSION_SECRET`.
 6. Add repository variable `PAGES_ORIGIN` as the origin only, such as `https://owner.github.io` (no repository path). Run **Deploy secure write gateway** once.

@@ -32,7 +32,7 @@ jobs:
           ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
           ADMIN_PASSWORD_SALT: ${{ secrets.ADMIN_PASSWORD_SALT }}
           ADMIN_SESSION_SECRET: ${{ secrets.ADMIN_SESSION_SECRET }}
-          GITHUB_DATA_TOKEN: ${{ secrets.GITHUB_DATA_TOKEN }}
+          GITHUB_DATA_TOKEN: ${{ secrets.PLANNER_DATA_TOKEN }}
           GITHUB_OWNER: ${{ github.repository_owner }}
           GITHUB_REPO: ${{ github.event.repository.name }}
           ALLOWED_ORIGIN: ${{ vars.PAGES_ORIGIN }}
