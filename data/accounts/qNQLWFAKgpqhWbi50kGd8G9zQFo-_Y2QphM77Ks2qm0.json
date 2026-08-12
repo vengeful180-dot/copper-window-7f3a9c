@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "id": "fa8f6b13-fb68-49c3-9ee5-ecfd1874cbfb",
+  "kdf": {
+    "name": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 310000,
+    "salt": "dzq0LvPfG++k2uyz6PMoqA=="
+  },
+  "verifierHash": "FgpqPWL5O4qvwC-rV0QY0KtJhMfKNyIsBsG13-b1wrY",
+  "wrappedEnvelope": {
+    "version": 1,
+    "cipher": {
+      "name": "AES-GCM",
+      "iv": "N4gGGthBExjwkq9n",
+      "data": "f9ldhvUE4fcS2Qmujy6BzUFs2Db-DsjCJ_-BdqpeMg0eLhqlrH22k5hgIV3UOBT3Hj0e9Lr9do6CEIXQpmfeygJOgqkaB4jtn8b7qFdfnKbNQJbuEhNskM6H1EjqfjCW-9oF9IX_hWGr76GTb0ywYuCsh37jY06QHb6OeBRUVnrYXqb7YdmZE_zlJxN374U5pcm95UONHLcM_AWxOrxS0LvEBmFN1LME0Hda11MRYYfFAjw1lOgteeQVADdQkOBklDZA6XMcr9I6gmZjm73_HEvWJ2biegdGJUESTJxC8dBSD0ehbCyzsLlzq1kBXZtVIq06krntgPck57nHzuM1oIPEmsmSxnY7qHRbsVDRDP3eICeIlzBxhRdhrnzZLTnO-OOU0MZOiLFU9l3WUkBzbAHfZ4W3PyEK92l-4qf_waGH-MLWmnqBfFYjbxGJPU-BI24FXvxtgDqym6pZEEqPeDNLp1SeKZPxMjKWYK5bN6DUPivRHYb53lWCmG_UlHl8_rHU6RpMQNphPux6Lmp89mjXRuDGvftxIGe5kB2K0e-mMGmFmfI3VXFFPxZavbTYdQYjm_WuKk85G2Ojzb_44peT-1BO7uA_jwFYIsFhhjEmxckN0ZHoF4opyLErpEjb0OG1fp-KxK1k5gEFGUeiPry2hz6g8q4SING2ERcpAOffFNiLcti4VpwT5DsN_6Vl991xv8I1Fh6eAc_jRuh7MfdGMcTo_ZduThLaKD1xX5Nd7FZamLM"
+    }
+  }
+}
