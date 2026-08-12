@@ -61,7 +61,7 @@ test("team totals are plain metadata without generic or decorative counter shape
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /assets\/app\.js\?v=20260813-lucide-arrows-v1/u);
+  assert.match(html, /assets\/app\.js\?v=20260813-active-holidays-v1/u);
   assert.match(app, /memberCount\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
   assert.match(design, /\.count-badge\s*\{[\s\S]*?border-radius:\s*0/u);
   assert.match(html, /id="awayTodayCount"[^>]*data-label="away"/u);
@@ -259,12 +259,15 @@ test("work-location controls fill the entire day cell and carry their status tin
   assert.match(styles, /\.work-row\.is-current-user\s*\{[^}]*linear-gradient[^}]*box-shadow/u);
 });
 
-test("summary cards begin at today instead of repeating holidays that started earlier", async () => {
+test("summary cards show people whose holidays include today or the rest of this week", async () => {
   const app = await readFile(new URL("../assets/app.js", import.meta.url), "utf8");
-  assert.match(app, /const awayToday = peopleStartingBetween\(state\.people, today, today\)/u);
-  assert.match(app, /const awayWeek = peopleStartingBetween\(state\.people, today, weekEnd\)/u);
+  assert.match(app, /peopleAwayBetween,[\s\S]*?peopleAwayOn,/u);
+  assert.match(app, /const awayToday = peopleAwayOn\(state\.people, today\)/u);
+  assert.match(app, /const awayWeek = peopleAwayBetween\(state\.people, today, weekEnd\)/u);
+  assert.match(app, /activeHoliday\(person, rangeStart, rangeEnd \?\? rangeStart\)/u);
   assert.match(app, /Away today/u);
-  assert.doesNotMatch(app, /const awayToday = peopleAwayOn/u);
+  assert.match(app, /No one is away today\./u);
+  assert.doesNotMatch(app, /peopleStartingBetween|holidayStartingBetween|No holidays start today/u);
 });
 
 test("holiday ownership controls, current-user accents, and crowded-day disclosure are wired into the UI", async () => {

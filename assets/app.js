@@ -24,6 +24,8 @@ import {
   normalizeName,
   parseIsoDate,
   personHue,
+  peopleAwayBetween,
+  peopleAwayOn,
   rangesOverlapOnWorkingDay,
   startOfWeek,
   todayIso,
@@ -759,15 +761,7 @@ function activeHoliday(person, start, end = start) {
   return person.holidays.find((holiday) => rangesOverlapOnWorkingDay(start, end, holiday.start, holiday.end)) ?? null;
 }
 
-function holidayStartingBetween(person, start, end) {
-  return person.holidays.find((holiday) => holiday.start >= start && holiday.start <= end) ?? null;
-}
-
-function peopleStartingBetween(people, start, end) {
-  return people.filter((person) => Boolean(holidayStartingBetween(person, start, end)));
-}
-
-function renderPersonSummary(list, people, emptyMessage, { todayOnly = false, startingFrom = null, startingTo = null } = {}) {
+function renderPersonSummary(list, people, emptyMessage, { todayOnly = false, rangeStart = null, rangeEnd = null } = {}) {
   list.replaceChildren();
   if (!people.length) {
     list.append(makeElement("p", "list-empty", emptyMessage));
@@ -782,8 +776,8 @@ function renderPersonSummary(list, people, emptyMessage, { todayOnly = false, st
     row.append(makeElement("span", "person-dot"));
     const copy = makeElement("div", "person-copy");
     copy.append(makeElement("p", "person-name", person.name));
-    const holiday = startingFrom
-      ? holidayStartingBetween(person, startingFrom, startingTo ?? startingFrom)
+    const holiday = rangeStart
+      ? activeHoliday(person, rangeStart, rangeEnd ?? rangeStart)
       : activeHoliday(person, todayIso()) ?? activeHoliday(person, weekStart, weekEnd);
     if (holiday) copy.append(makeElement("p", "person-dates", todayOnly ? `Away today \u00b7 ${holidayLabel(holiday)}` : holidayLabel(holiday)));
     row.append(copy);
@@ -795,13 +789,13 @@ function renderPersonSummary(list, people, emptyMessage, { todayOnly = false, st
 function renderSummaries() {
   const today = todayIso();
   const weekEnd = toIsoDate(endOfWeek());
-  const awayToday = peopleStartingBetween(state.people, today, today);
-  const awayWeek = peopleStartingBetween(state.people, today, weekEnd);
+  const awayToday = peopleAwayOn(state.people, today);
+  const awayWeek = peopleAwayBetween(state.people, today, weekEnd);
   $("awayTodayCount").textContent = String(awayToday.length);
   $("awayWeekCount").textContent = String(awayWeek.length);
   $("peopleCount").textContent = String(state.people.length);
-  renderPersonSummary($("awayTodayList"), awayToday, "No holidays start today.", { todayOnly: true, startingFrom: today, startingTo: today });
-  renderPersonSummary($("awayWeekList"), awayWeek, "No holidays start during the rest of this week.", { startingFrom: today, startingTo: weekEnd });
+  renderPersonSummary($("awayTodayList"), awayToday, "No one is away today.", { todayOnly: true, rangeStart: today, rangeEnd: today });
+  renderPersonSummary($("awayWeekList"), awayWeek, "No one is away for the rest of this week.", { rangeStart: today, rangeEnd: weekEnd });
   const teamList = $("peopleList");
   teamList.replaceChildren();
   if (!state.people.length) {
