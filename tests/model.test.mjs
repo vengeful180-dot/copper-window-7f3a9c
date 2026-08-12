@@ -5,10 +5,15 @@ import {
   canonicalName,
   dateRange,
   findPersonByName,
+  isWeekendIso,
   monthCells,
   mergeConfigChanges,
+  nextWorkingDayIso,
   normalizeName,
+  peopleAwayBetween,
+  peopleAwayOn,
   rangesOverlap,
+  rangesOverlapOnWorkingDay,
   validateHolidayInput,
 } from "../assets/model.js";
 
@@ -48,6 +53,29 @@ test("validates dates, exact duplicates, and overlapping ranges", () => {
   assert.equal(overlap.overlaps.length, 1);
   const reversed = validateHolidayInput({ name: "John", start: "2026-08-28", end: "2026-08-20" }, existing);
   assert.match(reversed.errors.join(" "), /cannot be before/u);
+});
+
+test("rejects weekend endpoints but allows a holiday to pass over a weekend", () => {
+  const saturday = validateHolidayInput({ name: "John", start: "2026-08-15", end: "2026-08-15" });
+  assert.equal(saturday.valid, false);
+  assert.match(saturday.errors.join(" "), /Saturday or Sunday/u);
+  const sundayEnd = validateHolidayInput({ name: "John", start: "2026-08-14", end: "2026-08-16" });
+  assert.equal(sundayEnd.valid, false);
+  const fridayToMonday = validateHolidayInput({ name: "John", start: "2026-08-14", end: "2026-08-17" });
+  assert.equal(fridayToMonday.valid, true);
+  assert.equal(isWeekendIso("2026-08-15"), true);
+  assert.equal(isWeekendIso("2026-08-17"), false);
+  assert.equal(nextWorkingDayIso("2026-08-15"), "2026-08-17");
+});
+
+test("weekends do not count as away days in calendar summaries", () => {
+  const people = [{ id: "person-1", name: "John", holidays: [{ id: "holiday-1", start: "2026-08-14", end: "2026-08-17" }] }];
+  assert.equal(peopleAwayOn(people, "2026-08-14").length, 1);
+  assert.equal(peopleAwayOn(people, "2026-08-15").length, 0);
+  assert.equal(peopleAwayOn(people, "2026-08-17").length, 1);
+  assert.equal(peopleAwayBetween(people, "2026-08-15", "2026-08-16").length, 0);
+  assert.equal(peopleAwayBetween(people, "2026-08-10", "2026-08-16").length, 1);
+  assert.equal(rangesOverlapOnWorkingDay("2026-08-14", "2026-08-17", "2026-08-15", "2026-08-16"), false);
 });
 
 test("handles holidays spanning two months and inclusive overlap", () => {

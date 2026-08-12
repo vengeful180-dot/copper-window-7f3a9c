@@ -119,9 +119,10 @@
         <input id="editPersonId" type="hidden"><input id="editHolidayId" type="hidden">
         <div class="field"><label for="employeeName">Employee name</label><input id="employeeName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter a full name"><p class="field-hint">New names are added to the team automatically.</p></div>
         <div class="date-fields">
-          <div class="field"><label for="holidayStart">From</label><input id="holidayStart" name="start" type="date" required></div>
-          <div class="field"><label for="holidayEnd">To</label><input id="holidayEnd" name="end" type="date" required></div>
+          <div class="field"><label for="holidayStart">From</label><input id="holidayStart" name="start" type="date" aria-describedby="holidayDateHint holidayFormMessage" required></div>
+          <div class="field"><label for="holidayEnd">To</label><input id="holidayEnd" name="end" type="date" aria-describedby="holidayDateHint holidayFormMessage" required></div>
         </div>
+        <p id="holidayDateHint" class="field-hint">Saturday and Sunday are not bookable. A range can pass over a weekend.</p>
         <p id="holidayFormMessage" class="form-message" role="alert"></p>
         <div class="modal-actions"><button id="deleteHolidayButton" class="button button-danger" type="button" hidden>Delete holiday</button><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="holidayDialog">Cancel</button><button id="saveHolidayButton" class="button button-primary" type="submit">Save holiday</button></div>
       </form>

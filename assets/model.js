@@ -32,6 +32,18 @@ export function isIsoDate(value) {
   return parseIsoDate(value) !== null;
 }
 
+export function isWeekendIso(value) {
+  const date = parseIsoDate(value);
+  return Boolean(date && (date.getUTCDay() === 0 || date.getUTCDay() === 6));
+}
+
+export function nextWorkingDayIso(value) {
+  const date = parseIsoDate(value);
+  if (!date) return null;
+  while (date.getUTCDay() === 0 || date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 export function toIsoDate(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -64,14 +76,23 @@ export function rangesOverlap(aStart, aEnd, bStart, bEnd) {
   return aStart <= bEnd && bStart <= aEnd;
 }
 
+export function rangesOverlapOnWorkingDay(aStart, aEnd, bStart, bEnd) {
+  const overlapStart = aStart > bStart ? aStart : bStart;
+  const overlapEnd = aEnd < bEnd ? aEnd : bEnd;
+  return dateRange(overlapStart, overlapEnd, 7).some((iso) => !isWeekendIso(iso));
+}
+
 export function validateHolidayInput(input, holidays = [], editingHolidayId = null) {
   const normalizedName = normalizeName(input.name);
   const errors = [];
+  const validStart = isIsoDate(input.start);
+  const validEnd = isIsoDate(input.end);
   if (!normalizedName) errors.push("Enter an employee name.");
-  if (!isIsoDate(input.start)) errors.push("Choose a valid start date.");
-  if (!isIsoDate(input.end)) errors.push("Choose a valid end date.");
-  if (isIsoDate(input.start) && isIsoDate(input.end) && input.end < input.start) errors.push("The end date cannot be before the start date.");
-  if (isIsoDate(input.start) && isIsoDate(input.end) && dateRange(input.start, input.end, 368).length > 367) errors.push("A holiday cannot be longer than 12 months.");
+  if (!validStart) errors.push("Choose a valid start date.");
+  if (!validEnd) errors.push("Choose a valid end date.");
+  if ((validStart && isWeekendIso(input.start)) || (validEnd && isWeekendIso(input.end))) errors.push("Holidays cannot start or end on Saturday or Sunday.");
+  if (validStart && validEnd && input.end < input.start) errors.push("The end date cannot be before the start date.");
+  if (validStart && validEnd && dateRange(input.start, input.end, 368).length > 367) errors.push("A holiday cannot be longer than 12 months.");
 
   const comparable = holidays.filter((holiday) => holiday.id !== editingHolidayId);
   const duplicate = comparable.find((holiday) => holiday.start === input.start && holiday.end === input.end);
@@ -99,6 +120,7 @@ export function addHoliday(people, input, idFactory = () => crypto.randomUUID())
 }
 
 export function peopleAwayOn(people, isoDate) {
+  if (!isIsoDate(isoDate) || isWeekendIso(isoDate)) return [];
   return people.filter((person) => person.holidays.some((holiday) => holiday.start <= isoDate && holiday.end >= isoDate));
 }
 
@@ -116,7 +138,7 @@ export function endOfWeek(date = new Date()) {
 }
 
 export function peopleAwayBetween(people, start, end) {
-  return people.filter((person) => person.holidays.some((holiday) => rangesOverlap(start, end, holiday.start, holiday.end)));
+  return people.filter((person) => person.holidays.some((holiday) => rangesOverlapOnWorkingDay(start, end, holiday.start, holiday.end)));
 }
 
 export function personHue(id) {

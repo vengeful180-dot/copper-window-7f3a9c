@@ -15,12 +15,15 @@ import {
   canonicalName,
   endOfWeek,
   findPersonByName,
+  isWeekendIso,
   monthCells,
   mergeConfigChanges,
+  nextWorkingDayIso,
   normalizeName,
   peopleAwayBetween,
   peopleAwayOn,
   personHue,
+  rangesOverlapOnWorkingDay,
   startOfWeek,
   todayIso,
   toIsoDate,
@@ -399,7 +402,7 @@ function renderWeekly() {
 }
 
 function activeHoliday(person, start, end = start) {
-  return person.holidays.find((holiday) => holiday.start <= end && holiday.end >= start) ?? null;
+  return person.holidays.find((holiday) => rangesOverlapOnWorkingDay(start, end, holiday.start, holiday.end)) ?? null;
 }
 
 function renderPersonSummary(list, people, emptyMessage) {
@@ -450,6 +453,7 @@ function renderSummaries() {
 }
 
 function holidaysForDate(iso) {
+  if (isWeekendIso(iso)) return [];
   const entries = [];
   for (const person of state.people) {
     for (const holiday of person.holidays) {
@@ -478,7 +482,7 @@ function renderCalendar() {
   const month = state.month.getMonth();
   $("monthTitle").textContent = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(state.month);
   $("calendarLoading").hidden = true;
-  const hasHolidays = state.people.some((person) => person.holidays.length);
+  const hasHolidays = state.people.some((person) => person.holidays.some((holiday) => rangesOverlapOnWorkingDay(holiday.start, holiday.end, holiday.start, holiday.end)));
   $("calendarEmpty").hidden = hasHolidays;
   $("calendarDesktop").hidden = !hasHolidays;
   $("mobileAgenda").hidden = !hasHolidays;
@@ -492,6 +496,10 @@ function renderCalendar() {
     day.setAttribute("role", "gridcell");
     day.setAttribute("aria-label", friendlyDate(cell.iso, { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
     if (!cell.currentMonth) day.classList.add("outside-month");
+    if (isWeekendIso(cell.iso)) {
+      day.classList.add("is-weekend");
+      day.setAttribute("aria-disabled", "true");
+    }
     if (cell.iso === today) day.classList.add("is-today");
     day.append(makeElement("span", "day-number", String(cell.date.getDate())));
     const events = makeElement("div", "day-holidays");
@@ -538,8 +546,9 @@ function openAddHoliday() {
   $("editHolidayId").value = "";
   $("employeeName").readOnly = false;
   $("employeeName").value = state.account?.displayName ?? "";
-  $("holidayStart").value = todayIso();
-  $("holidayEnd").value = todayIso();
+  const initialDate = nextWorkingDayIso(todayIso()) ?? todayIso();
+  $("holidayStart").value = initialDate;
+  $("holidayEnd").value = initialDate;
   $("holidayModalEyebrow").textContent = "New time away";
   $("holidayModalTitle").textContent = "Add holiday";
   $("deleteHolidayButton").hidden = true;
@@ -564,8 +573,8 @@ function openHolidayEditor(personId, holidayId) {
   $("holidayModalTitle").textContent = "Edit holiday";
   $("deleteHolidayButton").hidden = false;
   $("saveHolidayButton").textContent = "Save changes";
-  $("holidayFormMessage").textContent = "";
   state.overlapConfirmation = null;
+  resetOverlapConfirmation();
   showDialog($("holidayDialog"));
   $("holidayStart").focus();
 }
@@ -736,7 +745,8 @@ async function deleteHoliday() {
 function resetOverlapConfirmation() {
   state.overlapConfirmation = null;
   $("saveHolidayButton").textContent = $("editHolidayId").value ? "Save changes" : "Save holiday";
-  $("holidayFormMessage").textContent = "";
+  const weekendSelected = [$("holidayStart").value, $("holidayEnd").value].some((value) => value && isWeekendIso(value));
+  $("holidayFormMessage").textContent = weekendSelected ? "Holidays cannot start or end on Saturday or Sunday." : "";
 }
 
 function openAdmin() {
