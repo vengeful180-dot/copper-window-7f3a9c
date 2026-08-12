@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kdf": {
+    "name": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 310000,
+    "salt": "wL5vtOYHoK0QLzD/njkKdw=="
+  },
+  "cipher": {
+    "name": "AES-GCM",
+    "iv": "1S2TLmMcGNLYvfdQ",
+    "data": "11ZM7lIFS1LmqApZXFAs23B6MCIUzdeEjXiCHbu+/2QJAYhelfsLwf992dGVfKU1K/BxfuaQ0bgT/1R9mWorkXXATbUY5BfBwqvX5UcOWFbwNxbG4hBxVKdbzKdL8GHRSqdM4FWbY1Jmu7jN4yfPU/zZa7CegcTJGsPTjOqb0KU6L8t4DvPwHqCA4n4VY73BM2n9YKSklGKf82ea1EC8v9tvoOYzSBJWJdO/x+ECWUbFjGsV5pMQAA=="
+  }
+}

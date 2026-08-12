@@ -109,13 +109,13 @@ test("calendar and work schedule use dark integrated surfaces instead of white s
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v7/u);
+  assert.match(html, /20260812-emerald-ui-v8/u);
   assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
-  assert.match(styles, /\.calendar-day\s*\{[^}]*background:\s*rgba\(255,255,255,\.052\)/u);
+  assert.match(styles, /\.calendar-day\s*\{[^}]*linear-gradient/u);
   assert.match(styles, /\.work-legend span::before\s*\{/u);
   assert.match(styles, /\.work-status::before\s*\{/u);
   assert.match(styles, /\.work-status\.is-home\s*\{\s*color:/u);
-  assert.doesNotMatch(styles, /\.work-status\.is-home\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /button\.work-status\.is-home\s*\{[^}]*linear-gradient/u);
 });
 
 test("dialogs use dark emerald surfaces and controls instead of white cards", async () => {
@@ -123,7 +123,7 @@ test("dialogs use dark emerald surfaces and controls instead of white cards", as
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v7/u);
+  assert.match(html, /20260812-emerald-ui-v8/u);
   assert.match(styles, /\.modal-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.modal-card input, \.modal-card textarea\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
   assert.match(styles, /\.date-picker-trigger\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
@@ -131,6 +131,29 @@ test("dialogs use dark emerald surfaces and controls instead of white cards", as
   assert.match(styles, /\.modal-card \.button-primary\s*\{[^}]*linear-gradient/u);
   assert.match(styles, /\.admin-person\s*\{[^}]*background:\s*rgba\(255,255,255,\.055\)/u);
   assert.match(styles, /html:has\(dialog\[open\]\)\s*\{\s*overflow:\s*hidden/u);
+});
+
+test("holiday calendar uses layered glass treatment for populated views", async () => {
+  const [html, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /20260812-emerald-ui-v8/u);
+  assert.match(styles, /\.calendar-card\s*\{[^}]*backdrop-filter:\s*blur\(28px\) saturate\(1\.24\)/u);
+  assert.match(styles, /\.calendar-card::before\s*\{/u);
+  assert.match(styles, /\.calendar-card::after\s*\{/u);
+  assert.match(styles, /\.calendar-day\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /\.holiday-chip\s*\{[^}]*backdrop-filter:\s*blur\(8px\)/u);
+  assert.match(styles, /@media \(min-width: 1081px\)[\s\S]*?\.sidebar\s*\{[^}]*max-height:\s*calc\(100vh - 126px\)[^}]*overflow-y:\s*auto/u);
+});
+
+test("work-location controls fill the entire day cell and carry their status tint", async () => {
+  const styles = await readFile(new URL("../assets/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /button\.work-status\s*\{[^}]*width:\s*100%[^}]*min-height:\s*58px/u);
+  assert.match(styles, /button\.work-status\.is-home\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /button\.work-status\.is-office\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /\.work-day-cell:has\(> button\.work-status\)\s*\{\s*padding:\s*0/u);
+  assert.match(styles, /button\.work-status:focus-visible\s*\{/u);
 });
 
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
