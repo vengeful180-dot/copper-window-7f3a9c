@@ -61,7 +61,7 @@ test("team totals are plain metadata without generic or decorative counter shape
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /assets\/app\.js\?v=20260813-active-holidays-v1/u);
+  assert.match(html, /assets\/app\.js\?v=20260813-month-holidays-v1/u);
   assert.match(app, /memberCount\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
   assert.match(design, /\.count-badge\s*\{[\s\S]*?border-radius:\s*0/u);
   assert.match(html, /id="awayTodayCount"[^>]*data-label="away"/u);
@@ -268,6 +268,22 @@ test("summary cards show people whose holidays include today or the rest of this
   assert.match(app, /Away today/u);
   assert.match(app, /No one is away today\./u);
   assert.doesNotMatch(app, /peopleStartingBetween|holidayStartingBetween|No holidays start today/u);
+});
+
+test("holiday-record people follow the displayed month and exclude elapsed dates", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="peopleCardTitle">This month</u);
+  assert.match(app, /const monthStart = toIsoDate\(new Date\(displayedYear, displayedMonth, 1\)\)/u);
+  assert.match(app, /const monthEnd = toIsoDate\(new Date\(displayedYear, displayedMonth \+ 1, 0\)\)/u);
+  assert.match(app, /const visibleStart = monthStart > today \? monthStart : today/u);
+  assert.match(app, /monthEnd < today[\s\S]*?rangesOverlapOnWorkingDay\(visibleStart, monthEnd, holiday\.start, holiday\.end\)/u);
+  assert.match(app, /\$\("peopleCardTitle"\)\.textContent = `\$\{monthName\} holidays`/u);
+  assert.match(app, /const holidayCount = entriesByPersonId\.get\(person\.id\)\.holidays\.length/u);
+  assert.match(app, /function changeMonth\(offset\)[\s\S]*?renderSummaries\(\);[\s\S]*?renderCalendar\(\);/u);
+  assert.match(app, /\$\("todayButton"\)\.addEventListener[\s\S]*?renderSummaries\(\);[\s\S]*?renderCalendar\(\);/u);
 });
 
 test("holiday ownership controls, current-user accents, and crowded-day disclosure are wired into the UI", async () => {

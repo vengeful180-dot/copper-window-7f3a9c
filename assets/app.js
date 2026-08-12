@@ -796,18 +796,36 @@ function renderSummaries() {
   $("peopleCount").textContent = String(state.people.length);
   renderPersonSummary($("awayTodayList"), awayToday, "No one is away today.", { todayOnly: true, rangeStart: today, rangeEnd: today });
   renderPersonSummary($("awayWeekList"), awayWeek, "No one is away for the rest of this week.", { rangeStart: today, rangeEnd: weekEnd });
+
+  const displayedYear = state.month.getFullYear();
+  const displayedMonth = state.month.getMonth();
+  const monthName = new Intl.DateTimeFormat("en-GB", { month: "long" }).format(state.month);
+  const monthStart = toIsoDate(new Date(displayedYear, displayedMonth, 1));
+  const monthEnd = toIsoDate(new Date(displayedYear, displayedMonth + 1, 0));
+  const visibleStart = monthStart > today ? monthStart : today;
+  const monthEntries = monthEnd < today
+    ? []
+    : state.people.map((person) => ({
+      person,
+      holidays: person.holidays.filter((holiday) => rangesOverlapOnWorkingDay(visibleStart, monthEnd, holiday.start, holiday.end)),
+    })).filter((entry) => entry.holidays.length > 0);
+
+  $("peopleCardTitle").textContent = `${monthName} holidays`;
+  $("peopleCount").textContent = String(monthEntries.length);
   const teamList = $("peopleList");
   teamList.replaceChildren();
-  if (!state.people.length) {
-    teamList.append(makeElement("p", "list-empty", "People appear automatically when their first holiday is added."));
+  if (!monthEntries.length) {
+    teamList.append(makeElement("p", "list-empty", monthEnd < today ? `No upcoming holidays remain in ${monthName}.` : `No current or upcoming holidays in ${monthName}.`));
   } else {
-    for (const person of sortPeopleForCurrent(state.people)) {
+    const entriesByPersonId = new Map(monthEntries.map((entry) => [entry.person.id, entry]));
+    for (const person of sortPeopleForCurrent(monthEntries.map((entry) => entry.person))) {
+      const holidayCount = entriesByPersonId.get(person.id).holidays.length;
       const row = makeElement("div", "team-row");
       if (isCurrentAccountPerson(person)) row.classList.add("is-current-user");
       row.style.setProperty("--person-hue", personHue(person.id));
       row.append(makeElement("span", "person-dot"), makeElement("span", "person-name", person.name));
       if (isCurrentAccountPerson(person)) row.append(makeElement("span", "you-badge", "You"));
-      row.append(makeElement("span", "holiday-total", `${person.holidays.length} ${person.holidays.length === 1 ? "holiday" : "holidays"}`));
+      row.append(makeElement("span", "holiday-total", `${holidayCount} ${holidayCount === 1 ? "holiday" : "holidays"}`));
       teamList.append(row);
     }
   }
@@ -1524,6 +1542,7 @@ async function deletePerson(personId) {
 
 function changeMonth(offset) {
   state.month = new Date(state.month.getFullYear(), state.month.getMonth() + offset, 1);
+  renderSummaries();
   renderCalendar();
 }
 
@@ -1561,7 +1580,11 @@ function bindEvents() {
   $("configForm").addEventListener("submit", saveConfig);
   $("previousMonth").addEventListener("click", () => changeMonth(-1));
   $("nextMonth").addEventListener("click", () => changeMonth(1));
-  $("todayButton").addEventListener("click", () => { state.month = new Date(new Date().getFullYear(), new Date().getMonth(), 1); renderCalendar(); });
+  $("todayButton").addEventListener("click", () => {
+    state.month = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    renderSummaries();
+    renderCalendar();
+  });
   $("confirmCancel").addEventListener("click", () => settleConfirmation(false));
   $("confirmAccept").addEventListener("click", () => settleConfirmation(true));
   $("confirmDialog").addEventListener("cancel", (event) => { event.preventDefault(); settleConfirmation(false); });
