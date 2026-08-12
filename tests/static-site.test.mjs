@@ -64,7 +64,7 @@ test("team totals are plain metadata without generic or decorative counter shape
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /assets\/app\.js\?v=20260813-team-invite-v2/u);
+  assert.match(html, /assets\/app\.js\?v=20260813-account-row-repair-v3/u);
   assert.match(app, /memberCount\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
   assert.match(design, /\.count-badge\s*\{[\s\S]*?border-radius:\s*0/u);
   assert.match(html, /id="awayTodayCount"[^>]*data-label="away"/u);

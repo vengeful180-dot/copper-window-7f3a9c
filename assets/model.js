@@ -302,6 +302,25 @@ export function assertPresenceRecord(record) {
   return { version: 1, members };
 }
 
+export function reconcileCurrentPresenceMember(record, account) {
+  const presence = assertPresenceRecord(record);
+  if (!account || !UUID.test(account.id ?? "")) throw new Error("Invalid current account.");
+  const displayName = normalizeName(account.displayName);
+  if (!displayName || displayName !== account.displayName) throw new Error("Invalid current account.");
+  const current = presence.members.find((member) => member.accountId === account.id);
+  if (current) {
+    if (current.displayName === displayName) return { presence, changed: false };
+    const duplicate = presence.members.find((member) => member !== current && canonicalName(member.displayName) === canonicalName(displayName));
+    if (duplicate) throw new Error("Another work-location member already uses this name.");
+    current.displayName = displayName;
+    return { presence: assertPresenceRecord(presence), changed: true };
+  }
+  const stale = presence.members.find((member) => canonicalName(member.displayName) === canonicalName(displayName));
+  if (stale) stale.accountId = account.id;
+  else presence.members.push({ accountId: account.id, displayName, officeDays: [], homeDays: [] });
+  return { presence: assertPresenceRecord(presence), changed: true };
+}
+
 export function isOfficeDay(member, teamOfficeDays, iso) {
   if (!isIsoDate(iso) || isWeekendIso(iso)) return false;
   if (member?.homeDays?.includes(iso)) return false;

@@ -29,12 +29,13 @@ import {
   peopleAwayBetween,
   peopleAwayOn,
   rangesOverlapOnWorkingDay,
+  reconcileCurrentPresenceMember,
   startOfWeek,
   todayIso,
   toIsoDate,
   twoWorkWeeks,
   validateHolidayInput,
-} from "./model.js?v=20260813-holiday-day-count-v1";
+} from "./model.js?v=20260813-account-row-repair-v3";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MIN_ACCOUNT_PASSWORD_LENGTH = 8;
@@ -644,14 +645,11 @@ async function commitPresenceMutation(mutate, { admin = false } = {}) {
 
 async function ensureCurrentAccountInPresence() {
   if (!state.unlocked || !state.account || !apiConfigured()) return;
-  const existing = state.presence.members.find((member) => member.accountId === state.account.id);
-  if (existing?.displayName === state.account.displayName) return;
+  const reconciled = reconcileCurrentPresenceMember(state.presence, state.account);
+  if (!reconciled.changed) return;
   try {
     await commitPresenceMutation((latest) => {
-      const member = latest.members.find((candidate) => candidate.accountId === state.account.id);
-      if (member) member.displayName = state.account.displayName;
-      else latest.members.push({ accountId: state.account.id, displayName: state.account.displayName, officeDays: [], homeDays: [] });
-      return latest;
+      return reconcileCurrentPresenceMember(latest, state.account).presence;
     });
   } catch (error) {
     showToast(error.message || "Your work-location row could not be synced yet.", "error");

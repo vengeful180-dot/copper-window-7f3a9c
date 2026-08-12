@@ -19,6 +19,7 @@ import {
   peopleAwayOn,
   rangesOverlap,
   rangesOverlapOnWorkingDay,
+  reconcileCurrentPresenceMember,
   twoWorkWeeks,
   validateHolidayInput,
 } from "../assets/model.js";
@@ -135,6 +136,16 @@ test("work-location records default to home and produce current and next weekday
     ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21"],
   ]);
   assert.throws(() => assertPresenceRecord({ version: 1, members: [{ accountId, displayName: "John Smith", officeDays: ["2026-08-15"] }] }), /office day/u);
+});
+
+test("a recreated account reclaims its existing work-location row by name", () => {
+  const staleAccountId = "11111111-1111-4111-8111-111111111111";
+  const currentAccountId = "22222222-2222-4222-8222-222222222222";
+  const original = { version: 1, members: [{ accountId: staleAccountId, displayName: "John Smith", officeDays: ["2026-08-13"], homeDays: ["2026-08-14"] }] };
+  const result = reconcileCurrentPresenceMember(original, { id: currentAccountId, displayName: "John Smith" });
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.presence.members, [{ accountId: currentAccountId, displayName: "John Smith", officeDays: ["2026-08-13"], homeDays: ["2026-08-14"] }]);
+  assert.equal(reconcileCurrentPresenceMember(result.presence, { id: currentAccountId, displayName: "John Smith" }).changed, false);
 });
 
 test("team office days remain defaults that each person can override to home", () => {
