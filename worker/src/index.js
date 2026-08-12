@@ -78,18 +78,6 @@ export function createWorker(fetchImpl = fetch) {
           return json(request, env, { token: await createAdminToken(env), expiresIn: 900 });
         }
 
-        if (request.method === "GET" && url.pathname === "/api/admin/repository-check") {
-          await requireAdmin(request, env);
-          try {
-            const current = await store().get("data/index.json");
-            return json(request, env, { ok: true, digest: current.digest });
-          } catch (error) {
-            const unsafeMessage = error instanceof Error ? error.message : String(error);
-            const message = unsafeMessage.replaceAll(env.GITHUB_DATA_TOKEN || "never-match", "[redacted]").replace(/github_pat_[A-Za-z0-9_]+/gu, "[redacted]").slice(0, 240);
-            return json(request, env, { ok: false, type: error instanceof Error ? error.name : typeof error, message });
-          }
-        }
-
         if (request.method === "POST" && url.pathname === "/api/person") {
           await requireSite(request, env);
           const body = validateCreatePersonBody(await readJsonBody(request));

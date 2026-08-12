@@ -43,7 +43,7 @@ export class ConflictError extends Error {
 
 export class GitHubStore {
   constructor(env, fetchImpl = fetch) {
-    this.fetch = fetchImpl;
+    this.fetch = fetchImpl.bind(globalThis);
     this.owner = env.GITHUB_OWNER;
     this.repo = env.GITHUB_REPO;
     this.branch = env.GITHUB_BRANCH || "main";

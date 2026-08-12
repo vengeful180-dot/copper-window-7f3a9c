@@ -18,6 +18,17 @@ test("GitHub reads use a URL string accepted by the Workers fetch runtime", asyn
   assert.equal(inputType, "string");
 });
 
+test("outbound fetch keeps the Workers runtime global context", async () => {
+  let correctContext = false;
+  async function runtimeFetch() {
+    correctContext = this === globalThis;
+    return Response.json({ type: "file", sha: "index-sha", content: btoa(JSON.stringify({ people: [] })) });
+  }
+  const store = new GitHubStore(env, runtimeFetch);
+  await store.get("data/index.json");
+  assert.equal(correctContext, true);
+});
+
 test("new person creation writes an encrypted file and anonymous index only", async () => {
   const github = new MockGitHub({ "data/index.json": { people: [] } });
   const store = new GitHubStore(env, github.fetch);
