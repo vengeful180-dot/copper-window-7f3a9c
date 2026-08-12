@@ -62,16 +62,13 @@ export async function authorizeSite(request, env) {
 
 export async function verifyAdminPassword(password, env) {
   if (typeof password !== "string" || !password || password.length > 256 || !env.ADMIN_PASSWORD_HASH || !env.ADMIN_PASSWORD_SALT) return false;
-  const salt = base64UrlToBytes(env.ADMIN_PASSWORD_SALT);
-  if (salt.length !== 16) return false;
-  const material = await crypto.subtle.importKey("raw", encoder.encode(password.normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
-  const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 310_000 }, material, 256));
-  return timingSafeEqual(bits, base64UrlToBytes(env.ADMIN_PASSWORD_HASH));
+  const verifier = await hmac(password.normalize("NFKC"), env.ADMIN_PASSWORD_SALT, 16).catch(() => new Uint8Array());
+  return timingSafeEqual(verifier, base64UrlToBytes(env.ADMIN_PASSWORD_HASH));
 }
 
-async function hmac(value, secret) {
+async function hmac(value, secret, minimumBytes = 32) {
   const secretBytes = base64UrlToBytes(secret);
-  if (secretBytes.length < 32) throw new Error("Admin session secret is not configured.");
+  if (secretBytes.length < minimumBytes) throw new Error("A signing secret is not configured.");
   const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
 }

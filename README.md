@@ -36,7 +36,7 @@ There is no SQL service, account directory, or traditional database. The Worker 
 - a fresh random 96-bit GCM nonce for every save;
 - an authenticated context string identifying this application and format version.
 
-The shared site password is never stored. PBKDF2 derives 512 bits: one 256-bit half becomes the AES key and the other becomes a high-entropy write credential. The Worker stores only a SHA-256 verifier for that credential. The separate Admin password is checked by the Worker against a salted PBKDF2 verifier, then exchanged for a signed 15-minute in-memory Admin session token.
+The shared site password is never stored. PBKDF2 derives 512 bits: one 256-bit half becomes the AES key and the other becomes a high-entropy write credential. The Worker stores only a SHA-256 verifier for that credential. The separate, randomly generated Admin password is checked against an HMAC-SHA-256 verifier using a private server-side salt, then exchanged for a signed 15-minute in-memory Admin session token. The fast verifier keeps authentication within the Cloudflare Workers Free CPU allowance; Admin attempts remain rate limited.
 
 Decrypted data and derived keys remain in JavaScript memory only. Locking or closing the tab discards them. The app does not use localStorage or sessionStorage.
 
@@ -83,7 +83,7 @@ For a custom Worker domain, also add that exact origin to the `connect-src` poli
 | --- | --- | --- |
 | `SITE_AUTH_TOKEN_HASH` | Verifies ordinary encrypted writes | Yes |
 | `ADMIN_PASSWORD_HASH` | Verifies the Admin password | Yes |
-| `ADMIN_PASSWORD_SALT` | Salt for the Admin verifier | Yes |
+| `ADMIN_PASSWORD_SALT` | Private key material for the Admin verifier | Yes |
 | `ADMIN_SESSION_SECRET` | Signs short-lived Admin sessions | Yes |
 | `GITHUB_DATA_TOKEN` | Commits permitted files | Yes |
 | `GITHUB_OWNER` | Repository owner | Treat as runtime configuration |

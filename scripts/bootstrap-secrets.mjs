@@ -16,9 +16,10 @@ function randomPassword(prefix) {
   return `${prefix}_${toBase64Url(crypto.getRandomValues(new Uint8Array(24)))}`;
 }
 
-async function deriveAdminHash(password, salt) {
-  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(password.normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
-  return toBase64Url(new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 310_000 }, material, 256)));
+async function deriveAdminHash(password, secret) {
+  const key = await crypto.subtle.importKey("raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(password.normalize("NFKC")));
+  return toBase64Url(new Uint8Array(signature));
 }
 
 const sitePassword = randomPassword("team");
