@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#f4f1eb">
     <title>Team Time Away</title>
     <link rel="preload" as="image" href="assets/images/dream-team-architecture.webp" type="image/webp">
-    <link rel="stylesheet" href="assets/styles.css?v=20260812-green-hero-v2">
+    <link rel="stylesheet" href="assets/styles.css?v=20260812-emerald-ui-v5">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -77,25 +77,26 @@
           <div class="portal-hero">
             <img class="portal-hero-backdrop" src="assets/images/dream-team-architecture.webp" width="1536" height="1024" alt="Modern emerald-glass office buildings surrounded by landscaped trees" decoding="async" fetchpriority="high">
             <div class="portal-hero-copy">
-              <p class="eyebrow">Private team space</p>
-              <h1 id="homeTitle"><span id="homeGroupName">Dream Team</span>, all in one place.</h1>
-              <p>Jump into the team calendar, plan where you are working, or open one of your shared shortcuts.</p>
+              <p class="eyebrow">Your team, in rhythm</p>
+              <h1 id="homeTitle"><span id="homeGroupName">Dream Team</span>, moving in sync.</h1>
+              <p>Plan time away, choose where you are working, and keep every team shortcut within reach.</p>
+              <div class="portal-hero-meta" aria-label="Workspace tools"><span>Holiday planning</span><span>Work rhythm</span><span>Team links</span></div>
               <button id="editHomeButton" class="button button-secondary" type="button" hidden>Edit homepage</button>
             </div>
           </div>
 
           <div class="portal-grid">
             <button id="homeHolidaysButton" class="portal-action-card holidays-action" type="button">
-              <span class="action-icon" aria-hidden="true">H</span><span><small>Team planning</small><strong>Holidays</strong><em>See time away and add holiday dates</em></span><span class="action-arrow" aria-hidden="true">&rarr;</span>
+              <span class="action-icon" aria-hidden="true">01</span><span><small>Time away, made clear</small><strong>Holidays</strong><em>Plan leave and see the whole team calendar</em></span><span class="action-arrow" aria-hidden="true">&rarr;</span>
             </button>
             <button id="homeWorkButton" class="portal-action-card work-action" type="button">
-              <span class="action-icon" aria-hidden="true">W</span><span><small>This week + next</small><strong>Work location</strong><em>Choose home or office for each day</em></span><span class="action-arrow" aria-hidden="true">&rarr;</span>
+              <span class="action-icon" aria-hidden="true">02</span><span><small>Two-week team view</small><strong>Work location</strong><em>Set home or office and stay aligned</em></span><span class="action-arrow" aria-hidden="true">&rarr;</span>
             </button>
             <article class="mom-card">
               <div><p class="eyebrow">MOM</p><h2>Meeting notes</h2></div><p id="momValue" class="mom-copy empty-copy"></p>
             </article>
             <section class="quick-links-card" aria-labelledby="quickLinksTitle">
-              <div class="section-heading"><div><p class="eyebrow">Shortcuts</p><h2 id="quickLinksTitle">Quick links</h2></div><span>6 editable spaces</span></div>
+              <div class="section-heading"><div><p class="eyebrow">One click away</p><h2 id="quickLinksTitle">Team shortcuts</h2></div><span>6 editable spaces</span></div>
               <div id="quickLinks" class="quick-links"></div>
             </section>
           </div>
@@ -120,7 +121,7 @@
         </section>
 
         <section id="workPage" class="page-view work-page" aria-labelledby="workTitle" hidden>
-          <div class="page-heading"><div><p class="eyebrow">Team rhythm</p><h1 id="workTitle">Where we&rsquo;re working</h1><p>This week and next week are always shown. Everyone starts at home; choose your own office days.</p></div><div class="work-legend" aria-label="Schedule legend"><span class="legend-home">Home</span><span class="legend-office">Office</span><span class="legend-holiday">Holiday</span></div></div>
+          <div class="page-heading"><div><p class="eyebrow">Two-week team rhythm</p><h1 id="workTitle">Where we work, together.</h1><p>See everyone at a glance, switch your own days between home and office, and let holidays appear automatically.</p></div><div class="work-legend" aria-label="Schedule legend"><span class="legend-home">Home</span><span class="legend-office">Office</span><span class="legend-holiday">Holiday</span></div></div>
           <div id="workSchedule" class="work-schedule"></div>
           <p id="workMessage" class="form-message work-message" role="status"></p>
         </section>

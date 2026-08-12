@@ -63,7 +63,7 @@ test("header navigation stays truly centered and stable between pages", async ()
   assert.match(styles, /grid-template-columns:\s*minmax\(0, 1fr\) auto minmax\(0, 1fr\)/u);
   assert.match(styles, /\.app-nav\s*\{[^}]*justify-self:\s*center/u);
   assert.match(styles, /grid-template-areas:\s*"brand actions" "nav nav"/u);
-  assert.match(styles, /html\s*\{[^}]*overflow-y:\s*scroll[^}]*scrollbar-gutter:\s*stable/u);
+  assert.match(styles, /html\s*\{[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/u);
   assert.match(html, /id="addHolidayButton"[^>]*type="button"(?![^>]*hidden)/u);
   assert.doesNotMatch(app, /\$\("addHolidayButton"\)\.hidden/u);
 });
@@ -79,16 +79,29 @@ test("homepage editing is visible only during a live Admin session", async () =>
   assert.match(app, /setTimeout\(\(\) => clearAdminSession\(\{ prompt: true \}\), lifetimeMs\)/u);
 });
 
-test("homepage uses optimized generated architectural and green background artwork", async () => {
+test("homepage uses optimized architectural artwork over a resolution-independent CSS backdrop", async () => {
   const [html, styles] = await Promise.all([
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /assets\/images\/dream-team-architecture\.webp/u);
   assert.match(html, /alt="Modern emerald-glass office buildings surrounded by landscaped trees"/u);
-  assert.match(styles, /url\("images\/portal-green-background\.webp"\)/u);
+  assert.doesNotMatch(styles, /url\("images\/portal-green-background\.webp"\)/u);
+  assert.match(styles, /\.app-shell\s*\{[^}]*repeating-radial-gradient[^}]*background-attachment:\s*fixed/u);
   assert.match(styles, /\.portal-hero-backdrop\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0[^}]*object-fit:\s*cover/u);
   assert.doesNotMatch(html, /portal-hero-visual/u);
+});
+
+test("emerald art direction replaces flat homepage and work surfaces", async () => {
+  const [html, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /Your team, in rhythm/u);
+  assert.match(styles, /\.holidays-action\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /\.quick-links-card\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /\.work-page \.page-heading\s*\{[^}]*linear-gradient/u);
+  assert.match(styles, /@media \(min-width: 1181px\) and \(max-height: 1100px\)/u);
 });
 
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
