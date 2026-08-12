@@ -924,17 +924,17 @@ body {
   z-index: 7;
   inset: 0;
   pointer-events: none;
-  border: 2px solid #564d47;
-  border-left: 3px solid #8c7465;
+  border: 3px solid #8f7467;
+  border-left: 4px solid #c08d72;
   background:
-    linear-gradient(#9b8271, #9b8271) left top / 16px 2px no-repeat,
-    linear-gradient(#9b8271, #9b8271) left bottom / 16px 2px no-repeat,
-    linear-gradient(#70645d, #70645d) right top / 12px 2px no-repeat,
-    linear-gradient(#70645d, #70645d) right bottom / 12px 2px no-repeat;
+    linear-gradient(#ddad91, #ddad91) left top / 20px 3px no-repeat,
+    linear-gradient(#ddad91, #ddad91) left bottom / 20px 3px no-repeat,
+    linear-gradient(#b29180, #b29180) right top / 16px 3px no-repeat,
+    linear-gradient(#b29180, #b29180) right bottom / 16px 3px no-repeat;
   box-shadow:
-    inset 0 0 0 1px rgba(5, 11, 15, .76),
-    0 0 0 1px rgba(0, 0, 0, .5),
-    0 5px 14px rgba(0, 0, 0, .12);
+    inset 0 0 0 1px rgba(3, 9, 13, .92),
+    0 0 0 1px rgba(0, 0, 0, .72),
+    0 0 14px rgba(192, 141, 114, .11);
 }
 
 .work-row.is-current-user .work-person-cell { box-shadow: none; }
@@ -955,29 +955,30 @@ body {
   z-index: 8;
   inset: 0;
   pointer-events: none;
-  border-left: 2px solid #4f6570;
-  border-right: 2px solid #4f6570;
+  border-left: 3px solid #7d9ba8;
+  border-right: 3px solid #7d9ba8;
   background: none;
   box-shadow:
-    inset 1px 0 0 rgba(9, 17, 22, .8),
-    inset -1px 0 0 rgba(9, 17, 22, .8),
-    -1px 0 0 rgba(0, 0, 0, .42),
-    1px 0 0 rgba(0, 0, 0, .42);
+    inset 1px 0 0 rgba(3, 10, 14, .92),
+    inset -1px 0 0 rgba(3, 10, 14, .92),
+    -1px 0 0 rgba(0, 0, 0, .72),
+    1px 0 0 rgba(0, 0, 0, .72),
+    0 0 12px rgba(125, 155, 168, .09);
   filter: none;
 }
 
 .work-day-heading.is-today::after {
-  border-top: 2px solid #667d87;
+  border-top: 3px solid #8ba9b5;
   background:
-    linear-gradient(#8297a0, #8297a0) left top / 14px 2px no-repeat,
-    linear-gradient(#8297a0, #8297a0) right top / 14px 2px no-repeat;
+    linear-gradient(#bdd0d7, #bdd0d7) left top / 18px 3px no-repeat,
+    linear-gradient(#bdd0d7, #bdd0d7) right top / 18px 3px no-repeat;
 }
 
 .work-row:last-child .work-day-cell.is-today::after {
-  border-bottom: 2px solid #465c66;
+  border-bottom: 3px solid #6f8e9b;
   background:
-    linear-gradient(#667d87, #667d87) left bottom / 14px 2px no-repeat,
-    linear-gradient(#667d87, #667d87) right bottom / 14px 2px no-repeat;
+    linear-gradient(#9bb4be, #9bb4be) left bottom / 18px 3px no-repeat,
+    linear-gradient(#9bb4be, #9bb4be) right bottom / 18px 3px no-repeat;
 }
 
 .work-status {

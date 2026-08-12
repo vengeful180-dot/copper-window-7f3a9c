@@ -50,7 +50,7 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
-  assert.match(html, /assets\/design-v3\.css\?v=20260813-clean-work-frames-v4/u);
+  assert.match(html, /assets\/design-v3\.css\?v=20260813-visible-work-frames-v5/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
@@ -273,9 +273,9 @@ test("work-location controls fill the entire day cell and carry their status tin
   assert.match(styles, /\.work-table\s*\{[^}]*grid-auto-rows:\s*58px/u);
   assert.match(styles, /\.work-row\s*\{[^}]*height:\s*58px/u);
   assert.match(styles, /\.work-day-cell\.is-today\s*\{[^}]*padding:\s*0/u);
-  assert.match(design, /\.work-row\.is-current-user::after\s*\{[^}]*border:\s*2px solid #564d47[^}]*border-left:\s*3px solid #8c7465/u);
+  assert.match(design, /\.work-row\.is-current-user::after\s*\{[^}]*border:\s*3px solid #8f7467[^}]*border-left:\s*4px solid #c08d72/u);
   assert.match(design, /\.work-day-heading\.is-today,\s*\.work-day-cell\.is-today\s*\{[^}]*color:\s*inherit[^}]*background:\s*transparent[^}]*box-shadow:\s*none/u);
-  assert.match(design, /\.work-day-heading\.is-today::after,\s*\.work-day-cell\.is-today::after\s*\{[^}]*border-left:\s*2px solid #4f6570[^}]*border-right:\s*2px solid #4f6570[^}]*filter:\s*none/u);
+  assert.match(design, /\.work-day-heading\.is-today::after,\s*\.work-day-cell\.is-today::after\s*\{[^}]*border-left:\s*3px solid #7d9ba8[^}]*border-right:\s*3px solid #7d9ba8[^}]*filter:\s*none/u);
   assert.doesNotMatch(design, /\.work-(?:row\.is-current-user|day-(?:heading|cell)\.is-today)::after\s*\{[^}]*repeating-linear-gradient/u);
   assert.match(design, /\.work-status\.is-home\s*\{[^}]*color:\s*#78caff[^}]*rgba\(48, 143, 211, \.28\)/u);
   assert.match(design, /\.work-status\.is-office\s*\{[^}]*color:\s*#ffd166[^}]*rgba\(226, 169, 49, \.3\)/u);
