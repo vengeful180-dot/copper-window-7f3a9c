@@ -8,6 +8,7 @@ import {
   dateRange,
   findPersonByName,
   holidayForAccountDay,
+  isOfficeDay,
   isWeekendIso,
   monthCells,
   mergeConfigChanges,
@@ -97,7 +98,7 @@ test("calendar starts on Monday and always renders six complete weeks", () => {
 
 test("homepage config validates links and merges different fields safely", () => {
   const links = Array.from({ length: 6 }, () => ({ label: "", url: "" }));
-  const original = { version: 2, groupName: "Dream Team", mom: "A", links };
+  const original = { version: 2, groupName: "Dream Team", mom: "A", links, officeDays: [] };
   const latest = { ...original, mom: "B" };
   const desired = { ...original, groupName: "Great Team" };
   const legacyBridge = { weekLabel: "", announcement: "", secondaryAnnouncement: "" };
@@ -106,12 +107,15 @@ test("homepage config validates links and merges different fields safely", () =>
   assert.equal(assertConfigRecord({ mom: "Legacy MOM", weekLabel: "", announcement: "", secondaryAnnouncement: "" }).groupName, "Dream Team");
   assert.deepEqual(assertConfigRecord(original), { ...original, ...legacyBridge });
   assert.throws(() => assertConfigRecord({ ...original, links: [{ label: "Bad", url: "javascript:alert(1)" }, ...links.slice(1)] }), /https:\/\/ or http:\/\//u);
+  assert.throws(() => assertConfigRecord({ ...original, officeDays: ["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07"] }), /no more than 4/u);
+  assert.throws(() => assertConfigRecord({ ...original, officeDays: ["2026-08-08"] }), /weekday office dates/u);
 });
 
 test("work-location records default to home and produce current and next weekdays", () => {
   const accountId = "33333333-3333-4333-8333-333333333333";
   const presence = assertPresenceRecord({ version: 1, members: [{ accountId, displayName: "John Smith", officeDays: ["2026-08-13"] }] });
   assert.deepEqual(presence.members[0].officeDays, ["2026-08-13"]);
+  assert.deepEqual(presence.members[0].homeDays, []);
   assert.equal(presence.members[0].officeDays.includes("2026-08-12"), false);
   const weeks = twoWorkWeeks(new Date(2026, 7, 12, 12));
   assert.deepEqual(weeks.map((week) => week.days), [
@@ -119,6 +123,14 @@ test("work-location records default to home and produce current and next weekday
     ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21"],
   ]);
   assert.throws(() => assertPresenceRecord({ version: 1, members: [{ accountId, displayName: "John Smith", officeDays: ["2026-08-15"] }] }), /office day/u);
+});
+
+test("team office days remain defaults that each person can override to home", () => {
+  const base = { officeDays: [], homeDays: [] };
+  assert.equal(isOfficeDay(base, ["2026-08-14"], "2026-08-14"), true);
+  assert.equal(isOfficeDay({ ...base, homeDays: ["2026-08-14"] }, ["2026-08-14"], "2026-08-14"), false);
+  assert.equal(isOfficeDay({ ...base, officeDays: ["2026-08-17"] }, [], "2026-08-17"), true);
+  assert.equal(isOfficeDay(base, ["2026-08-15"], "2026-08-15"), false);
 });
 
 test("a matching holiday overrides an account work day", () => {

@@ -2,6 +2,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/gu;
 export const QUICK_LINK_COUNT = 6;
+export const MONTHLY_OFFICE_DAY_LIMIT = 4;
 
 export function normalizeName(value) {
   if (typeof value !== "string") return "";
@@ -190,6 +191,7 @@ export function assertConfigRecord(config) {
       groupName: "Dream Team",
       mom: config.mom,
       links: Array.from({ length: QUICK_LINK_COUNT }, () => ({ label: "", url: "" })),
+      officeDays: [],
       weekLabel: "",
       announcement: "",
       secondaryAnnouncement: "",
@@ -214,6 +216,19 @@ export function assertConfigRecord(config) {
     }
     return { label, url };
   });
+  if (config.officeDays !== undefined && !Array.isArray(config.officeDays)) throw new Error("Invalid team office days.");
+  const officeDays = [];
+  const seenOfficeDays = new Set();
+  const officeDaysPerMonth = new Map();
+  for (const iso of config.officeDays ?? []) {
+    if (!isIsoDate(iso) || isWeekendIso(iso) || seenOfficeDays.has(iso)) throw new Error("Choose unique weekday office dates.");
+    const monthKey = iso.slice(0, 7);
+    const monthCount = (officeDaysPerMonth.get(monthKey) ?? 0) + 1;
+    if (monthCount > MONTHLY_OFFICE_DAY_LIMIT) throw new Error(`Choose no more than ${MONTHLY_OFFICE_DAY_LIMIT} team office days in a month.`);
+    seenOfficeDays.add(iso);
+    officeDaysPerMonth.set(monthKey, monthCount);
+    officeDays.push(iso);
+  }
   // Keep empty legacy fields in the encrypted document so an older cached page
   // can still finish login while the cache-busted portal assets are loading.
   return {
@@ -221,6 +236,7 @@ export function assertConfigRecord(config) {
     groupName,
     mom: config.mom.trim(),
     links,
+    officeDays: officeDays.sort(compareIsoDates),
     weekLabel: "",
     announcement: "",
     secondaryAnnouncement: "",
@@ -232,7 +248,7 @@ export function mergeConfigChanges(original, latest, desired) {
   const safeLatest = assertConfigRecord(latest);
   const safeDesired = assertConfigRecord(desired);
   const next = structuredClone(safeLatest);
-  for (const field of ["groupName", "mom", "links"]) {
+  for (const field of ["groupName", "mom", "links", "officeDays"]) {
     const before = JSON.stringify(safeOriginal[field]);
     if (JSON.stringify(safeDesired[field]) === before) continue;
     if (JSON.stringify(safeLatest[field]) !== before) throw new Error(`“${field}” changed elsewhere. Reopen Admin before replacing it.`);
@@ -246,10 +262,11 @@ export function assertPresenceRecord(record) {
   const accountIds = new Set();
   const names = new Set();
   const members = record.members.map((member) => {
-    if (!member || typeof member !== "object" || Array.isArray(member) || Object.keys(member).sort().join(",") !== "accountId,displayName,officeDays") throw new Error("Invalid work-location member.");
+    const memberKeys = member && typeof member === "object" && !Array.isArray(member) ? Object.keys(member).sort().join(",") : "";
+    if (!["accountId,displayName,officeDays", "accountId,displayName,homeDays,officeDays"].includes(memberKeys)) throw new Error("Invalid work-location member.");
     const displayName = normalizeName(member.displayName);
     const nameKey = canonicalName(displayName);
-    if (!UUID.test(member.accountId ?? "") || !displayName || displayName !== member.displayName || accountIds.has(member.accountId) || names.has(nameKey) || !Array.isArray(member.officeDays) || member.officeDays.length > 520) throw new Error("Invalid work-location member.");
+    if (!UUID.test(member.accountId ?? "") || !displayName || displayName !== member.displayName || accountIds.has(member.accountId) || names.has(nameKey) || !Array.isArray(member.officeDays) || member.officeDays.length > 520 || (member.homeDays !== undefined && (!Array.isArray(member.homeDays) || member.homeDays.length > 520))) throw new Error("Invalid work-location member.");
     const officeDays = [];
     const seenDays = new Set();
     for (const iso of member.officeDays) {
@@ -257,12 +274,25 @@ export function assertPresenceRecord(record) {
       seenDays.add(iso);
       officeDays.push(iso);
     }
+    const homeDays = [];
+    const seenHomeDays = new Set();
+    for (const iso of member.homeDays ?? []) {
+      if (!isIsoDate(iso) || isWeekendIso(iso) || seenHomeDays.has(iso) || seenDays.has(iso)) throw new Error("Invalid home override day.");
+      seenHomeDays.add(iso);
+      homeDays.push(iso);
+    }
     accountIds.add(member.accountId);
     names.add(nameKey);
-    return { accountId: member.accountId.toLowerCase(), displayName, officeDays: officeDays.sort(compareIsoDates) };
+    return { accountId: member.accountId.toLowerCase(), displayName, officeDays: officeDays.sort(compareIsoDates), homeDays: homeDays.sort(compareIsoDates) };
   });
   members.sort((a, b) => a.displayName.localeCompare(b.displayName));
   return { version: 1, members };
+}
+
+export function isOfficeDay(member, teamOfficeDays, iso) {
+  if (!isIsoDate(iso) || isWeekendIso(iso)) return false;
+  if (member?.homeDays?.includes(iso)) return false;
+  return Boolean(member?.officeDays?.includes(iso) || teamOfficeDays?.includes(iso));
 }
 
 export function twoWorkWeeks(now = new Date()) {

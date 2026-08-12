@@ -17,6 +17,7 @@ import {
   endOfWeek,
   findPersonByName,
   holidayForAccountDay,
+  isOfficeDay,
   isWeekendIso,
   monthCells,
   mergeConfigChanges,
@@ -32,7 +33,7 @@ import {
   toIsoDate,
   twoWorkWeeks,
   validateHolidayInput,
-} from "./model.js?v=20260812-header-fix";
+} from "./model.js?v=20260813-team-office-days-v1";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MIN_ACCOUNT_PASSWORD_LENGTH = 8;
@@ -60,6 +61,8 @@ const state = {
   overlapConfirmation: null,
   datePickerTarget: null,
   datePickerMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  officeDaysMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  officeDaysDraft: [],
   busy: false,
 };
 
@@ -478,7 +481,9 @@ function clearAdminSession({ prompt = false } = {}) {
   $("momEditButton").hidden = true;
   $("adminButton").textContent = "Admin";
   $("adminButton").classList.remove("is-active");
+  if ($("teamOfficeDaysDialog").open) closeDialog($("teamOfficeDaysDialog"));
   if (state.unlocked && state.config) {
+    renderTeamOfficeDays();
     renderSummaries();
     renderCalendar();
     renderWorkSchedule();
@@ -500,6 +505,7 @@ function beginAdminSession(token, expiresIn) {
   $("adminButton").textContent = "Admin on";
   $("adminButton").classList.add("is-active");
   if (state.unlocked && state.config) {
+    renderTeamOfficeDays();
     renderSummaries();
     renderCalendar();
     renderWorkSchedule();
@@ -578,6 +584,7 @@ function renderHome() {
   setProtectedText($("momValue"), state.config.mom, "No MOM has been added yet. Open the full notes to see more.");
   setProtectedText($("momExpandedValue"), state.config.mom, "No meeting notes have been added yet. An Admin can add the full MOM from Edit homepage.");
   $("momEditButton").hidden = !state.adminToken;
+  renderTeamOfficeDays();
   const links = $("quickLinks");
   links.replaceChildren();
   state.config.links.forEach((link, index) => {
@@ -641,7 +648,7 @@ async function ensureCurrentAccountInPresence() {
     await commitPresenceMutation((latest) => {
       const member = latest.members.find((candidate) => candidate.accountId === state.account.id);
       if (member) member.displayName = state.account.displayName;
-      else latest.members.push({ accountId: state.account.id, displayName: state.account.displayName, officeDays: [] });
+      else latest.members.push({ accountId: state.account.id, displayName: state.account.displayName, officeDays: [], homeDays: [] });
       return latest;
     });
   } catch (error) {
@@ -656,7 +663,8 @@ function workStatusNode(member, iso) {
     status.title = holidayLabel(holiday);
     return status;
   }
-  const office = member.officeDays.includes(iso);
+  const office = isOfficeDay(member, state.config.officeDays, iso);
+  const teamDefault = state.config.officeDays.includes(iso);
   const ownRow = member.accountId === state.account?.id;
   const editable = ownRow || Boolean(state.adminToken);
   const status = makeElement(editable ? "button" : "span", `work-status ${office ? "is-office" : "is-home"}`, office ? "Office" : "Home");
@@ -666,6 +674,7 @@ function workStatusNode(member, iso) {
     status.setAttribute("aria-label", `${member.displayName}, ${friendlyDate(iso, { weekday: "long", day: "numeric", month: "long" })}: ${office ? "work at office" : "work from home"}. Select to change.`);
     status.addEventListener("click", () => toggleOfficeDay(member.accountId, member.displayName, iso));
   }
+  if (teamDefault && !member.homeDays.includes(iso) && !member.officeDays.includes(iso)) status.title = "Team office day";
   return status;
 }
 
@@ -704,7 +713,7 @@ function renderWorkSchedule() {
         const secondIsCurrent = second.accountId === state.account?.id;
         return firstIsCurrent === secondIsCurrent ? first.displayName.localeCompare(second.displayName) : firstIsCurrent ? -1 : 1;
       })
-      .map((member) => Object.freeze({ ...member, officeDays: Object.freeze([...(member.officeDays || [])]) })),
+      .map((member) => Object.freeze({ ...member, officeDays: Object.freeze([...(member.officeDays || [])]), homeDays: Object.freeze([...(member.homeDays || [])]) })),
   );
   const holidayRecordIds = new Set(state.people.map((person) => person.id));
   twoWorkWeeks().forEach((week, weekIndex) => {
@@ -745,7 +754,16 @@ async function toggleOfficeDay(accountId, displayName, iso) {
     await commitPresenceMutation((latest) => {
       const member = latest.members.find((candidate) => candidate.accountId === accountId);
       if (!member) throw new UserMessageError("That team member's row is no longer available. Refresh and try again.");
-      member.officeDays = member.officeDays.includes(iso) ? member.officeDays.filter((day) => day !== iso) : [...member.officeDays, iso];
+      const currentlyOffice = isOfficeDay(member, state.config.officeDays, iso);
+      if (currentlyOffice) {
+        member.officeDays = member.officeDays.filter((day) => day !== iso);
+        member.homeDays = [...member.homeDays.filter((day) => day !== iso), iso];
+      } else {
+        member.homeDays = member.homeDays.filter((day) => day !== iso);
+        member.officeDays = state.config.officeDays.includes(iso)
+          ? member.officeDays.filter((day) => day !== iso)
+          : [...member.officeDays.filter((day) => day !== iso), iso];
+      }
       return latest;
     }, { admin });
     $("workMessage").textContent = "Saved.";
@@ -831,6 +849,151 @@ function renderSummaries() {
   }
 }
 
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function officeDaysForMonth(date, source = state.config?.officeDays ?? []) {
+  const prefix = `${monthKey(date)}-`;
+  return source.filter((iso) => iso.startsWith(prefix)).sort();
+}
+
+function renderTeamOfficeDays() {
+  const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const officeDays = officeDaysForMonth(currentMonth);
+  $("teamOfficeDaysMonth").textContent = new Intl.DateTimeFormat("en-GB", { month: "long" }).format(currentMonth);
+  const slots = $("teamOfficeDaysSlots");
+  slots.replaceChildren();
+  for (let index = 0; index < 4; index += 1) {
+    const iso = officeDays[index];
+    const slot = makeElement("span", `team-office-day-slot${iso ? " is-set" : ""}`);
+    if (iso) {
+      slot.append(makeElement("small", "", friendlyDate(iso, { weekday: "short" })), makeElement("strong", "", friendlyDate(iso, { day: "numeric" })));
+    } else {
+      slot.append(makeElement("small", "", "Open"), makeElement("strong", "", "—"));
+    }
+    slots.append(slot);
+  }
+  const editable = Boolean(state.adminToken);
+  $("teamOfficeDaysButton").classList.toggle("is-editable", editable);
+  $("teamOfficeDaysButton").setAttribute("aria-controls", editable ? "teamOfficeDaysDialog" : "adminDialog");
+  $("teamOfficeDaysButton").setAttribute("aria-label", editable ? "Edit this month's team office days" : "View this month's team office days. Admin can edit them.");
+  $("teamOfficeDaysHint").textContent = editable ? "Select to edit" : officeDays.length ? "Set by Admin" : "No dates set yet";
+}
+
+function openTeamOfficeDays() {
+  if (!state.adminToken) {
+    openAdmin();
+    return;
+  }
+  state.officeDaysMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  state.officeDaysDraft = [...(state.config.officeDays ?? [])];
+  $("officeDaysMessage").textContent = "";
+  renderOfficeDaysPicker();
+  showDialog($("teamOfficeDaysDialog"));
+}
+
+function renderOfficeDaysPicker() {
+  const year = state.officeDaysMonth.getFullYear();
+  const month = state.officeDaysMonth.getMonth();
+  const selected = new Set(officeDaysForMonth(state.officeDaysMonth, state.officeDaysDraft));
+  $("officeDaysMonthTitle").textContent = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(state.officeDaysMonth);
+  $("officeDaysSelectionCount").textContent = `${selected.size} of 4 selected`;
+  const grid = $("officeDaysGrid");
+  grid.replaceChildren();
+  for (const cell of monthCells(year, month)) {
+    const weekend = isWeekendIso(cell.iso);
+    const day = makeElement("button", "date-picker-day office-days-day", String(cell.date.getDate()));
+    day.type = "button";
+    day.disabled = weekend || !cell.currentMonth;
+    day.dataset.iso = cell.iso;
+    day.setAttribute("aria-label", `${friendlyDate(cell.iso, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}${weekend ? ", weekend unavailable" : ""}`);
+    if (!cell.currentMonth) day.classList.add("outside-month");
+    if (selected.has(cell.iso)) {
+      day.classList.add("is-selected");
+      day.setAttribute("aria-pressed", "true");
+    }
+    if (cell.iso === todayIso()) day.classList.add("is-today");
+    if (!day.disabled) day.addEventListener("click", () => toggleTeamOfficeDay(cell.iso));
+    grid.append(day);
+  }
+}
+
+function toggleTeamOfficeDay(iso) {
+  const selected = officeDaysForMonth(state.officeDaysMonth, state.officeDaysDraft);
+  if (selected.includes(iso)) state.officeDaysDraft = state.officeDaysDraft.filter((day) => day !== iso);
+  else if (selected.length < 4) state.officeDaysDraft.push(iso);
+  else {
+    $("officeDaysMessage").textContent = "Choose no more than four office days for this month.";
+    return;
+  }
+  $("officeDaysMessage").textContent = "";
+  renderOfficeDaysPicker();
+}
+
+function changeOfficeDaysMonth(offset) {
+  state.officeDaysMonth = new Date(state.officeDaysMonth.getFullYear(), state.officeDaysMonth.getMonth() + offset, 1);
+  $("officeDaysMessage").textContent = "";
+  renderOfficeDaysPicker();
+}
+
+function clearOfficeDaysMonth() {
+  const prefix = `${monthKey(state.officeDaysMonth)}-`;
+  state.officeDaysDraft = state.officeDaysDraft.filter((iso) => !iso.startsWith(prefix));
+  $("officeDaysMessage").textContent = "";
+  renderOfficeDaysPicker();
+}
+
+async function saveTeamOfficeDays() {
+  if (state.busy || !state.adminToken) return;
+  const button = $("saveOfficeDays");
+  const desiredOfficeDays = [...state.officeDaysDraft].sort();
+  const original = structuredClone(state.config);
+  if (JSON.stringify(desiredOfficeDays) === JSON.stringify(original.officeDays ?? [])) {
+    closeDialog($("teamOfficeDaysDialog"));
+    return;
+  }
+  state.busy = true;
+  setButtonBusy(button, true, "Saving…", "Save office days");
+  let base = structuredClone(state.config);
+  let meta = state.configMeta;
+  try {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const desired = { ...original, officeDays: desiredOfficeDays };
+      let next;
+      try { next = mergeConfigChanges(original, base, desired); }
+      catch (error) { throw new UserMessageError(error.message); }
+      const document = await encryptJson(next, state.secrets);
+      try {
+        const response = await api.updateConfig({ document, expectedDigest: meta.digest }, state.adminToken);
+        const confirmed = assertConfigRecord(await decryptJson(response.file.document, state.secrets));
+        if (await digestDocument(response.file.document) !== response.file.digest) throw new Error("The repository confirmation did not match.");
+        state.config = confirmed;
+        state.adminConfigBase = structuredClone(confirmed);
+        state.configMeta = { document: response.file.document, digest: response.file.digest, sha: response.file.sha ?? null };
+        renderAll();
+        closeDialog($("teamOfficeDaysDialog"));
+        showToast("Team office days updated.");
+        return;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409 && error.details?.latest?.document) {
+          base = assertConfigRecord(await decryptJson(error.details.latest.document, state.secrets));
+          meta = error.details.latest;
+          continue;
+        }
+        if (error instanceof ApiError && error.status === 401) clearAdminSession({ prompt: true });
+        throw error;
+      }
+    }
+    throw new UserMessageError("Team settings changed elsewhere. Reopen the office days and try again.");
+  } catch (error) {
+    $("officeDaysMessage").textContent = error.message || "The office days could not be saved.";
+  } finally {
+    state.busy = false;
+    setButtonBusy(button, false, "Saving…", "Save office days");
+  }
+}
+
 function isCurrentAccountPerson(person) {
   return Boolean(person && state.account?.displayName && canonicalName(person.name) === canonicalName(state.account.displayName));
 }
@@ -904,7 +1067,7 @@ async function saveProfile(event) {
       await commitPresenceMutation((latest) => {
         const member = latest.members.find((candidate) => candidate.accountId === state.account.id);
         if (member) member.displayName = response.displayName;
-        else latest.members.push({ accountId: state.account.id, displayName: response.displayName, officeDays: [] });
+        else latest.members.push({ accountId: state.account.id, displayName: response.displayName, officeDays: [], homeDays: [] });
         return latest;
       });
     } catch { syncWarnings.push("work-location name"); }
@@ -1382,6 +1545,7 @@ async function saveConfig(event) {
     version: 2,
     groupName: normalizeName($("groupNameInput").value),
     mom: $("momInput").value.trim(),
+    officeDays: [...(state.config.officeDays ?? [])],
     links: [...$("adminLinks").querySelectorAll(".admin-link-row")].map((row) => ({
       label: row.querySelector(".link-label").value,
       url: row.querySelector(".link-url").value,
@@ -1562,6 +1726,7 @@ function bindEvents() {
   $("profileButton").addEventListener("click", openProfile);
   $("profileForm").addEventListener("submit", saveProfile);
   $("editHomeButton").addEventListener("click", openAdmin);
+  $("teamOfficeDaysButton").addEventListener("click", openTeamOfficeDays);
   $("lockButton").addEventListener("click", lockPlanner);
   $("addHolidayButton").addEventListener("click", openAddHoliday);
   $("emptyAddButton").addEventListener("click", openAddHoliday);
@@ -1573,6 +1738,10 @@ function bindEvents() {
   $("datePickerCancel").addEventListener("click", closeDatePicker);
   $("datePickerGrid").addEventListener("keydown", handleDatePickerKeys);
   $("datePickerDialog").addEventListener("cancel", (event) => { event.preventDefault(); closeDatePicker(); });
+  $("officeDaysPrevious").addEventListener("click", () => changeOfficeDaysMonth(-1));
+  $("officeDaysNext").addEventListener("click", () => changeOfficeDaysMonth(1));
+  $("clearOfficeDays").addEventListener("click", clearOfficeDaysMonth);
+  $("saveOfficeDays").addEventListener("click", saveTeamOfficeDays);
   $("deleteHolidayButton").addEventListener("click", deleteHoliday);
   for (const id of ["employeeName", "holidayStart", "holidayEnd"]) $(id).addEventListener("input", resetOverlapConfirmation);
   $("adminButton").addEventListener("click", openAdmin);

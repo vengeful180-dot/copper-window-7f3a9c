@@ -26,7 +26,7 @@ if (!process.argv.includes("--config-only")) {
     const account = JSON.parse(await readFile(path.join(root, "data", "accounts", accountFiles[0]), "utf8"));
     const existing = presence.members.find((member) => member.accountId === account.id);
     if (existing) existing.displayName = seedName;
-    else presence.members.push({ accountId: account.id, displayName: seedName, officeDays: [] });
+    else presence.members.push({ accountId: account.id, displayName: seedName, officeDays: [], homeDays: [] });
   }
 
   const removeAccountId = String(process.env.PORTAL_REMOVE_ACCOUNT_ID ?? "").toLowerCase();

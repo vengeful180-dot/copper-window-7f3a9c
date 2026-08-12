@@ -94,7 +94,7 @@ for (const [name] of demoPeople) {
     if (existingMember.accountId !== person.id || existingMember.displayName !== name) throw new Error(`The demo schedule member ${name} conflicts with an existing member.`);
     continue;
   }
-  presence.members.push({ accountId: person.id, displayName: name, officeDays: demoOfficeDays.get(name) ?? [] });
+  presence.members.push({ accountId: person.id, displayName: name, officeDays: demoOfficeDays.get(name) ?? [], homeDays: [] });
   scheduleMembersAdded += 1;
 }
 const validatedPresence = assertPresenceRecord(presence);

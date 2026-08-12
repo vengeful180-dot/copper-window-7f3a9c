@@ -11,7 +11,7 @@
     <link rel="preload" as="image" href="assets/images/dream-team-architecture.webp" type="image/webp">
     <link rel="preload" as="image" href="assets/images/dream-team-site-background-v2.webp" type="image/webp">
     <link rel="stylesheet" href="assets/styles.css?v=20260812-background-v2">
-    <link rel="stylesheet" href="assets/design-v3.css?v=20260813-lucide-arrows-v1">
+    <link rel="stylesheet" href="assets/design-v3.css?v=20260813-team-office-days-v1">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -84,6 +84,11 @@
               <p>Plan time away, choose where you are working, and keep every team shortcut within reach.</p>
               <button id="editHomeButton" class="button button-secondary" type="button" hidden>Edit homepage</button>
             </div>
+            <button id="teamOfficeDaysButton" class="team-office-days" type="button" aria-haspopup="dialog" aria-controls="teamOfficeDaysDialog">
+              <span class="team-office-days-heading"><span><small>Monthly rhythm</small><strong>Team office days</strong></span><span id="teamOfficeDaysMonth" class="team-office-days-month"></span></span>
+              <span id="teamOfficeDaysSlots" class="team-office-days-slots" aria-live="polite"></span>
+              <span id="teamOfficeDaysHint" class="team-office-days-hint">Set by Admin</span>
+            </button>
           </div>
 
           <div class="portal-grid">
@@ -187,6 +192,21 @@
       </section>
     </dialog>
 
+    <dialog id="teamOfficeDaysDialog" class="modal office-days-modal" aria-labelledby="teamOfficeDaysTitle">
+      <section class="modal-card office-days-card">
+        <div class="modal-heading"><div><p class="eyebrow">Monthly team default</p><h2 id="teamOfficeDaysTitle">Choose office days</h2><p>Pick up to four weekdays. Everyone defaults to Office on these dates, but holidays remain Holiday and personal Home overrides remain available.</p></div><button class="icon-button modal-close" type="button" data-close-dialog="teamOfficeDaysDialog" aria-label="Close">&times;</button></div>
+        <div class="office-days-picker-heading">
+          <button id="officeDaysPrevious" class="icon-button" type="button" aria-label="Previous month">&lsaquo;</button>
+          <div><strong id="officeDaysMonthTitle"></strong><span id="officeDaysSelectionCount">0 of 4 selected</span></div>
+          <button id="officeDaysNext" class="icon-button" type="button" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div class="date-picker-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+        <div id="officeDaysGrid" class="date-picker-grid office-days-grid" role="group" aria-labelledby="officeDaysMonthTitle"></div>
+        <p id="officeDaysMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><button id="clearOfficeDays" class="button button-secondary" type="button">Clear month</button><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="teamOfficeDaysDialog">Cancel</button><button id="saveOfficeDays" class="button button-primary" type="button">Save office days</button></div>
+      </section>
+    </dialog>
+
     <dialog id="adminDialog" class="modal modal-wide">
       <section class="modal-card">
         <div class="modal-heading"><div><p class="eyebrow">Restricted controls</p><h2>Admin</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="adminDialog" aria-label="Close">&times;</button></div>
@@ -217,6 +237,6 @@
     </dialog>
 
     <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="assets/app.js?v=20260813-month-holidays-v1"></script>
+    <script type="module" src="assets/app.js?v=20260813-team-office-days-v1"></script>
   </body>
 </html>

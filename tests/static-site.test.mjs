@@ -50,7 +50,7 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
-  assert.match(html, /assets\/design-v3\.css\?v=20260813-lucide-arrows-v1/u);
+  assert.match(html, /assets\/design-v3\.css\?v=20260813-team-office-days-v1/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
@@ -61,7 +61,7 @@ test("team totals are plain metadata without generic or decorative counter shape
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /assets\/app\.js\?v=20260813-month-holidays-v1/u);
+  assert.match(html, /assets\/app\.js\?v=20260813-team-office-days-v1/u);
   assert.match(app, /memberCount\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
   assert.match(design, /\.count-badge\s*\{[\s\S]*?border-radius:\s*0/u);
   assert.match(html, /id="awayTodayCount"[^>]*data-label="away"/u);
@@ -90,6 +90,25 @@ test("official Lucide arrows provide one professional icon system", async () => 
   assert.match(upRight, /M7 7h10v10[\s\S]*?M7 17 17 7/u);
   assert.match(license, /ISC License[\s\S]*?The MIT License/u);
   assert.doesNotMatch(design, /forward-gem-v1\.png/u);
+});
+
+test("monthly team office days are Admin-owned defaults with personal Home overrides", async () => {
+  const [html, app, model, design] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../assets/model.js", import.meta.url), "utf8"),
+    readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="teamOfficeDaysButton"[^>]*aria-controls="teamOfficeDaysDialog"/u);
+  assert.match(html, /id="officeDaysGrid"/u);
+  assert.match(app, /function saveTeamOfficeDays\(\)/u);
+  assert.match(app, /isOfficeDay\(member, state\.config\.officeDays, iso\)/u);
+  assert.match(app, /function workStatusNode[\s\S]*?if \(holiday\)[\s\S]*?return status;[\s\S]*?isOfficeDay/u);
+  assert.match(app, /member\.homeDays = \[\.\.\.member\.homeDays\.filter/u);
+  assert.match(app, /state\.config\.officeDays\.includes\(iso\)[\s\S]*?member\.officeDays\.filter/u);
+  assert.match(model, /MONTHLY_OFFICE_DAY_LIMIT = 4/u);
+  assert.match(model, /export function isOfficeDay/u);
+  assert.match(design, /\.team-office-days\s*\{/u);
 });
 
 test("architectural background grid stays visibly defined", async () => {
