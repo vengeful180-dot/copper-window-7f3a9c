@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ConflictError, digestDocument, GitHubStore } from "../worker/src/github-store.js";
-import { MockGitHub } from "./helpers.mjs";
+import { encodeContent, MockGitHub } from "./helpers.mjs";
 
 const env = { GITHUB_DATA_TOKEN: "test-token", GITHUB_OWNER: "example", GITHUB_REPO: "planner", GITHUB_BRANCH: "main" };
 const firstId = "11111111-1111-4111-8111-111111111111";
@@ -70,6 +70,62 @@ test("account creation succeeds while the new branch commit is not yet visible t
   assert.deepEqual(created.document, record);
   assert.equal(created.digest, await digestDocument(record));
   assert.equal(accountReads, 1);
+});
+
+test("encrypted updates succeed while the branch GET still returns the previous commit", async () => {
+  const path = `data/people/${firstId}.enc.json`;
+  const original = { version: 1, ciphertext: "before" };
+  const next = { version: 1, ciphertext: "after" };
+  const github = new MockGitHub({ [path]: original });
+  const stale = structuredClone(github.files.get(path));
+  let reads = 0;
+  const eventuallyConsistentFetch = async (input, init = {}) => {
+    if ((init.method || "GET").toUpperCase() === "GET" && github.path(input) === path) {
+      reads += 1;
+      if (reads > 1) return Response.json({ type: "file", sha: stale.sha, content: encodeContent(stale.document) });
+    }
+    return github.fetch(input, init);
+  };
+  const store = new GitHubStore(env, eventuallyConsistentFetch);
+
+  const saved = await store.updateEncrypted(path, next, await digestDocument(original), "Update encrypted holiday record");
+
+  assert.deepEqual(github.files.get(path).document, next);
+  assert.deepEqual(saved.document, next);
+  assert.equal(saved.digest, await digestDocument(next));
+  assert.equal(reads, 1);
+});
+
+test("first holiday creation does not reread newly committed branch files", async () => {
+  const path = `data/people/${firstId}.enc.json`;
+  const indexPath = "data/index.json";
+  const document = { version: 1, ciphertext: "opaque" };
+  const github = new MockGitHub({ [indexPath]: { people: [] } });
+  const staleIndex = structuredClone(github.files.get(indexPath));
+  let personReads = 0;
+  let indexReads = 0;
+  const eventuallyConsistentFetch = async (input, init = {}) => {
+    if ((init.method || "GET").toUpperCase() === "GET") {
+      const requestPath = github.path(input);
+      if (requestPath === path) {
+        personReads += 1;
+        if (personReads > 1) return Response.json({ message: "Not Found" }, { status: 404 });
+      }
+      if (requestPath === indexPath) {
+        indexReads += 1;
+        if (indexReads > 1) return Response.json({ type: "file", sha: staleIndex.sha, content: encodeContent(staleIndex.document) });
+      }
+    }
+    return github.fetch(input, init);
+  };
+  const store = new GitHubStore(env, eventuallyConsistentFetch);
+
+  const created = await store.createPerson(firstId, document);
+
+  assert.deepEqual(created.person.document, document);
+  assert.deepEqual(created.index.document, { people: [firstId] });
+  assert.equal(personReads, 1);
+  assert.equal(indexReads, 1);
 });
 
 test("index SHA conflict refetches, merges UUID additions, and retries", async () => {

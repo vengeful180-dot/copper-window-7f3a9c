@@ -90,7 +90,11 @@ export class GitHubStore {
     if (response.status === 409 || response.status === 422) throw new GitHubError("GitHub version conflict.", 409);
     if (!response.ok) throw new GitHubError("GitHub could not save the protected data.");
     const payload = await response.json();
-    return payload.content?.sha ?? null;
+    const savedSha = payload.content?.sha;
+    if (typeof savedSha !== "string" || !savedSha) throw new GitHubError("GitHub returned an unexpected save response.");
+    // The successful conditional PUT confirms this exact content. A GET through
+    // the branch ref can briefly return the previous commit after this point.
+    return { sha: savedSha, document, digest: await digestDocument(document) };
   }
 
   async remove(path, sha, message) {
@@ -107,14 +111,11 @@ export class GitHubStore {
     const latest = await this.get(path);
     if (latest.digest !== expectedDigest) throw new ConflictError(latest);
     try {
-      await this.put(path, document, message, latest.sha);
+      return await this.put(path, document, message, latest.sha);
     } catch (error) {
       if (error instanceof GitHubError && error.status === 409) throw new ConflictError(await this.get(path));
       throw error;
     }
-    const confirmed = await this.get(path);
-    if (confirmed.digest !== await digestDocument(document)) throw new GitHubError("The saved repository file could not be confirmed.");
-    return confirmed;
   }
 
   async updateIndex(mutator, message) {
@@ -122,10 +123,7 @@ export class GitHubStore {
       const latest = await this.get("data/index.json");
       const next = validateAnonymousIndex(mutator(validateAnonymousIndex(latest.document)));
       try {
-        await this.put("data/index.json", next, message, latest.sha);
-        const confirmed = await this.get("data/index.json");
-        if (stableStringify(confirmed.document) !== stableStringify(next)) continue;
-        return confirmed;
+        return await this.put("data/index.json", next, message, latest.sha);
       } catch (error) {
         if (error instanceof GitHubError && error.status === 409) continue;
         throw error;
@@ -137,9 +135,9 @@ export class GitHubStore {
   async createPerson(id, document) {
     const path = `data/people/${id}.enc.json`;
     if (await this.get(path, { allowMissing: true })) throw new ConflictError(null, "That anonymous identifier already exists. Try again.");
-    let createdSha;
+    let person;
     try {
-      createdSha = await this.put(path, document, "Add encrypted holiday record");
+      person = await this.put(path, document, "Add encrypted holiday record");
     } catch (error) {
       if (error instanceof GitHubError && error.status === 409) throw new ConflictError(null, "That anonymous identifier already exists. Try again.");
       throw error;
@@ -148,11 +146,9 @@ export class GitHubStore {
     try {
       index = await this.updateIndex((current) => ({ people: [...new Set([...current.people, id])].sort() }), "Add anonymous team member reference");
     } catch (error) {
-      if (createdSha) await this.remove(path, createdSha, "Roll back incomplete encrypted record").catch(() => {});
+      if (person?.sha) await this.remove(path, person.sha, "Roll back incomplete encrypted record").catch(() => {});
       throw error;
     }
-    const person = await this.get(path);
-    if (person.digest !== await digestDocument(document)) throw new GitHubError("The new encrypted record could not be confirmed.");
     return { person, index };
   }
 
@@ -166,16 +162,12 @@ export class GitHubStore {
   async createAccount(lookup, record) {
     const validated = validateAccountRecord(record);
     if (await this.getAccount(lookup, { allowMissing: true })) throw new ConflictError(null, "An account with that name already exists.");
-    let createdSha;
     try {
-      createdSha = await this.put(`data/accounts/${lookup}.json`, validated, "Create encrypted planner account");
+      return await this.put(`data/accounts/${lookup}.json`, validated, "Create encrypted planner account");
     } catch (error) {
       if (error instanceof GitHubError && error.status === 409) throw new ConflictError(null, "An account with that name already exists.");
       throw error;
     }
-    // GitHub's successful PUT is authoritative. A GET through the branch ref can
-    // briefly see the previous commit and return 404 immediately after creation.
-    return { sha: createdSha, document: validated, digest: await digestDocument(validated) };
   }
 
   async deletePerson(id) {
