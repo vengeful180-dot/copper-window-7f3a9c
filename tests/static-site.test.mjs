@@ -50,7 +50,7 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
-  assert.match(html, /assets\/design-v3\.css\?v=20260813-team-office-days-v1/u);
+  assert.match(html, /assets\/design-v3\.css\?v=20260813-office-modal-fit-v1/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
@@ -61,7 +61,7 @@ test("team totals are plain metadata without generic or decorative counter shape
     readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
     readFile(new URL("../assets/design-v3.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /assets\/app\.js\?v=20260813-team-office-days-v1/u);
+  assert.match(html, /assets\/app\.js\?v=20260813-holiday-day-count-v1/u);
   assert.match(app, /memberCount\.append\(makeElement\("strong"[\s\S]*?makeElement\("small"/u);
   assert.match(design, /\.count-badge\s*\{[\s\S]*?border-radius:\s*0/u);
   assert.match(html, /id="awayTodayCount"[^>]*data-label="away"/u);
@@ -109,6 +109,8 @@ test("monthly team office days are Admin-owned defaults with personal Home overr
   assert.match(model, /MONTHLY_OFFICE_DAY_LIMIT = 4/u);
   assert.match(model, /export function isOfficeDay/u);
   assert.match(design, /\.team-office-days\s*\{/u);
+  assert.match(design, /\.office-days-modal\s*\{[^}]*width:\s*min\(calc\(100% - 28px\), 760px\)[^}]*overflow-x:\s*hidden/u);
+  assert.match(design, /\.office-days-card\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*box-sizing:\s*border-box[^}]*overflow-x:\s*hidden/u);
 });
 
 test("architectural background grid stays visibly defined", async () => {
@@ -300,7 +302,8 @@ test("holiday-record people follow the displayed month and exclude elapsed dates
   assert.match(app, /const visibleStart = monthStart > today \? monthStart : today/u);
   assert.match(app, /monthEnd < today[\s\S]*?rangesOverlapOnWorkingDay\(visibleStart, monthEnd, holiday\.start, holiday\.end\)/u);
   assert.match(app, /\$\("peopleCardTitle"\)\.textContent = `\$\{monthName\} holidays`/u);
-  assert.match(app, /const holidayCount = entriesByPersonId\.get\(person\.id\)\.holidays\.length/u);
+  assert.match(app, /const holidayDays = countHolidayWeekdays\(person\.holidays, monthStart, monthEnd\)/u);
+  assert.match(app, /`\$\{holidayDays\} \$\{holidayDays === 1 \? "day" : "days"\}`/u);
   assert.match(app, /function changeMonth\(offset\)[\s\S]*?renderSummaries\(\);[\s\S]*?renderCalendar\(\);/u);
   assert.match(app, /\$\("todayButton"\)\.addEventListener[\s\S]*?renderSummaries\(\);[\s\S]*?renderCalendar\(\);/u);
 });

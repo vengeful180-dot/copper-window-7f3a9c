@@ -144,6 +144,19 @@ export function peopleAwayBetween(people, start, end) {
   return people.filter((person) => person.holidays.some((holiday) => rangesOverlapOnWorkingDay(start, end, holiday.start, holiday.end)));
 }
 
+export function countHolidayWeekdays(holidays, start, end) {
+  if (!Array.isArray(holidays) || !isIsoDate(start) || !isIsoDate(end) || end < start) return 0;
+  const days = new Set();
+  for (const holiday of holidays) {
+    const overlapStart = holiday.start > start ? holiday.start : start;
+    const overlapEnd = holiday.end < end ? holiday.end : end;
+    for (const iso of dateRange(overlapStart, overlapEnd, 32)) {
+      if (!isWeekendIso(iso)) days.add(iso);
+    }
+  }
+  return days.size;
+}
+
 export function personHue(id) {
   let hash = 2166136261;
   for (const character of String(id)) {

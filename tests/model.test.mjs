@@ -5,6 +5,7 @@ import {
   assertConfigRecord,
   assertPresenceRecord,
   canonicalName,
+  countHolidayWeekdays,
   dateRange,
   findPersonByName,
   holidayForAccountDay,
@@ -87,6 +88,17 @@ test("handles holidays spanning two months and inclusive overlap", () => {
   const days = dateRange("2026-08-30", "2026-09-03");
   assert.deepEqual(days, ["2026-08-30", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03"]);
   assert.equal(rangesOverlap("2026-08-20", "2026-08-25", "2026-08-25", "2026-08-28"), true);
+});
+
+test("counts unique weekday holiday days inside the displayed range", () => {
+  const holidays = [
+    { id: "h1", start: "2026-08-13", end: "2026-08-17" },
+    { id: "h2", start: "2026-08-17", end: "2026-08-19" },
+    { id: "h3", start: "2026-09-01", end: "2026-09-02" },
+  ];
+  assert.equal(countHolidayWeekdays(holidays, "2026-08-01", "2026-08-31"), 5);
+  assert.equal(countHolidayWeekdays(holidays, "2026-08-17", "2026-08-31"), 3);
+  assert.equal(countHolidayWeekdays(holidays, "2026-09-01", "2026-09-30"), 2);
 });
 
 test("calendar starts on Monday and always renders six complete weeks", () => {

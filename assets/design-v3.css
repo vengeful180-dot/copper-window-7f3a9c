@@ -461,7 +461,9 @@ body {
 .team-office-day-slot strong { color: inherit; font: 800 1.1rem/1 var(--display-font); }
 .team-office-days-hint { justify-self: end; font-size: .59rem; }
 
-.office-days-card { width: min(680px, calc(100vw - 28px)); }
+.office-days-modal { width: min(calc(100% - 28px), 760px); overflow-x: hidden; }
+.office-days-card { width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden; }
+.office-days-card > * { min-width: 0; }
 .office-days-picker-heading { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; margin: 8px 0 14px; }
 .office-days-picker-heading > div { display: grid; justify-items: center; gap: 3px; }
 .office-days-picker-heading strong { color: #fff; font: 760 1.35rem/1.1 var(--display-font); }
@@ -1204,6 +1206,9 @@ button.work-status.is-office {
   .team-office-day-slot { min-height: 48px; }
   .office-days-card { padding-inline: 16px; }
   .office-days-grid .date-picker-day { min-height: 44px; }
+  .office-days-card .modal-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .office-days-card .modal-actions .button { width: 100%; min-width: 0; }
+  .office-days-card #clearOfficeDays { grid-column: 1 / -1; }
 }
 
 @media (min-width: 1800px) and (min-height: 1100px) {

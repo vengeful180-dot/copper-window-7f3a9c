@@ -14,6 +14,7 @@ import {
   assertPersonRecord,
   assertPresenceRecord,
   canonicalName,
+  countHolidayWeekdays,
   endOfWeek,
   findPersonByName,
   holidayForAccountDay,
@@ -33,7 +34,7 @@ import {
   toIsoDate,
   twoWorkWeeks,
   validateHolidayInput,
-} from "./model.js?v=20260813-team-office-days-v1";
+} from "./model.js?v=20260813-holiday-day-count-v1";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MIN_ACCOUNT_PASSWORD_LENGTH = 8;
@@ -835,15 +836,14 @@ function renderSummaries() {
   if (!monthEntries.length) {
     teamList.append(makeElement("p", "list-empty", monthEnd < today ? `No upcoming holidays remain in ${monthName}.` : `No current or upcoming holidays in ${monthName}.`));
   } else {
-    const entriesByPersonId = new Map(monthEntries.map((entry) => [entry.person.id, entry]));
     for (const person of sortPeopleForCurrent(monthEntries.map((entry) => entry.person))) {
-      const holidayCount = entriesByPersonId.get(person.id).holidays.length;
+      const holidayDays = countHolidayWeekdays(person.holidays, monthStart, monthEnd);
       const row = makeElement("div", "team-row");
       if (isCurrentAccountPerson(person)) row.classList.add("is-current-user");
       row.style.setProperty("--person-hue", personHue(person.id));
       row.append(makeElement("span", "person-dot"), makeElement("span", "person-name", person.name));
       if (isCurrentAccountPerson(person)) row.append(makeElement("span", "you-badge", "You"));
-      row.append(makeElement("span", "holiday-total", `${holidayCount} ${holidayCount === 1 ? "holiday" : "holidays"}`));
+      row.append(makeElement("span", "holiday-total", `${holidayDays} ${holidayDays === 1 ? "day" : "days"}`));
       teamList.append(row);
     }
   }
