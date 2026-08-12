@@ -710,7 +710,9 @@ function renderWorkSchedule() {
     const heading = makeElement("div", "work-week-heading");
     const copy = makeElement("div");
     copy.append(makeElement("p", "eyebrow", weekIndex === 0 ? "In progress" : "Coming next"), makeElement("h2", "", weekIndex === 0 ? "This week" : "Next week"), makeElement("span", "", `${friendlyDate(week.start)} – ${fullFriendlyDate(week.end)}`));
-    heading.append(copy, makeElement("span", "work-member-count", `${members.length} ${members.length === 1 ? "person" : "people"}`));
+    const memberIndex = makeElement("span", "work-member-count");
+    memberIndex.append(makeElement("strong", "", String(members.length)), makeElement("small", "", members.length === 1 ? "person" : "people"));
+    heading.append(copy, memberIndex);
     card.append(heading);
     const scroller = makeElement("div", "work-table-scroll");
     const table = makeElement("div", "work-table");

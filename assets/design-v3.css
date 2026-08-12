@@ -515,14 +515,46 @@ body {
 .holidays-page .spotlight-card .eyebrow { color: #ffc28e; }
 
 .holidays-page .summary-card .count-badge {
-  background: rgba(112, 167, 255, .12);
-  color: #a9c8ff;
-  box-shadow: inset 0 0 0 1px rgba(112,167,255,.18);
+  color: #9fc5c4;
 }
 
 .holidays-page .spotlight-card .count-badge {
-  background: rgba(255, 155, 114, .13);
   color: #ffc098;
+}
+
+/* Editorial index markers: quiet metadata instead of generic status pills. */
+.count-badge {
+  position: relative;
+  min-width: 38px;
+  height: auto;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  padding: 0 0 5px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #9fc5c4;
+  font-size: 1.1rem;
+  font-weight: 690;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.045em;
+  line-height: 1;
+}
+
+.count-badge::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  height: 2px;
+  background: linear-gradient(90deg, #49d0ab, rgba(112,167,255,.35));
+}
+
+.spotlight-card .count-badge::before {
+  background: linear-gradient(90deg, #ff9b72, rgba(244,190,114,.4));
 }
 
 .holidays-page .summary-card .person-row {
@@ -667,9 +699,56 @@ body {
 .work-week-heading span { color: #819b9e; }
 
 .work-week-heading .work-member-count {
-  border-color: rgba(112, 167, 255, .2);
-  background: rgba(112, 167, 255, .09);
+  min-width: 82px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 8px;
+  position: relative;
+  padding: 0 0 8px 12px;
+  border: 0;
+  border-left: 1px solid rgba(112, 167, 255, .34);
+  border-radius: 0;
+  background: transparent;
   color: #a9c7ff;
+}
+
+.work-week-heading .work-member-count::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  bottom: 0;
+  width: 48px;
+  height: 2px;
+  background: linear-gradient(90deg, #70a7ff, transparent);
+}
+
+.work-week-card:nth-child(2) .work-member-count {
+  border-left-color: rgba(255, 155, 114, .38);
+  color: #ffc09a;
+}
+
+.work-week-card:nth-child(2) .work-member-count::after {
+  background: linear-gradient(90deg, #ff9b72, transparent);
+}
+
+.work-week-heading .work-member-count strong {
+  color: currentColor;
+  font-size: 1.7rem;
+  font-weight: 660;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.075em;
+  line-height: .84;
+}
+
+.work-week-heading .work-member-count small {
+  margin: 0 0 1px;
+  color: #7f999c;
+  font-size: .54rem;
+  font-weight: 760;
+  letter-spacing: .14em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .work-table {
