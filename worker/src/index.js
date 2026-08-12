@@ -118,7 +118,7 @@ export function createWorker(fetchImpl = fetch) {
           await requireSite(request, env);
           const body = validateAccountRegistrationBody(await readJsonBody(request));
           const lookup = await accountLookupId(body.canonicalName, env);
-          const account = await store().createAccount(lookup, {
+          await store().createAccount(lookup, {
             version: 1,
             id: body.id,
             kdf: body.kdf,

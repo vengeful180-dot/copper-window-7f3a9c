@@ -166,13 +166,16 @@ export class GitHubStore {
   async createAccount(lookup, record) {
     const validated = validateAccountRecord(record);
     if (await this.getAccount(lookup, { allowMissing: true })) throw new ConflictError(null, "An account with that name already exists.");
+    let createdSha;
     try {
-      await this.put(`data/accounts/${lookup}.json`, validated, "Create encrypted planner account");
+      createdSha = await this.put(`data/accounts/${lookup}.json`, validated, "Create encrypted planner account");
     } catch (error) {
       if (error instanceof GitHubError && error.status === 409) throw new ConflictError(null, "An account with that name already exists.");
       throw error;
     }
-    return this.getAccount(lookup);
+    // GitHub's successful PUT is authoritative. A GET through the branch ref can
+    // briefly see the previous commit and return 404 immediately after creation.
+    return { sha: createdSha, document: validated, digest: await digestDocument(validated) };
   }
 
   async deletePerson(id) {

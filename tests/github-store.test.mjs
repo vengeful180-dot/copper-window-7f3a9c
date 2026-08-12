@@ -6,6 +6,17 @@ import { MockGitHub } from "./helpers.mjs";
 const env = { GITHUB_DATA_TOKEN: "test-token", GITHUB_OWNER: "example", GITHUB_REPO: "planner", GITHUB_BRANCH: "main" };
 const firstId = "11111111-1111-4111-8111-111111111111";
 const concurrentId = "22222222-2222-4222-8222-222222222222";
+const accountLookup = "A".repeat(43);
+
+function accountRecord() {
+  return {
+    version: 1,
+    id: firstId,
+    kdf: { name: "PBKDF2", hash: "SHA-256", iterations: 310_000, salt: "AAAAAAAAAAAAAAAAAAAAAA==" },
+    verifierHash: "B".repeat(43),
+    wrappedEnvelope: { version: 1, cipher: { name: "AES-GCM", iv: "AAAAAAAAAAAAAAAA", data: "AAAAAAAAAAAAAAAAAAAAAA" } },
+  };
+}
 
 test("GitHub reads use a URL string accepted by the Workers fetch runtime", async () => {
   let inputType = null;
@@ -37,6 +48,28 @@ test("new person creation writes an encrypted file and anonymous index only", as
   assert.deepEqual(github.files.get("data/index.json").document, { people: [firstId] });
   assert.deepEqual(result.person.document, document);
   assert.equal(JSON.stringify(github.files.get("data/index.json").document).includes("name"), false);
+});
+
+test("account creation succeeds while the new branch commit is not yet visible to GET", async () => {
+  const github = new MockGitHub();
+  const accountPath = `data/accounts/${accountLookup}.json`;
+  let accountReads = 0;
+  const eventuallyConsistentFetch = async (input, init = {}) => {
+    if ((init.method || "GET").toUpperCase() === "GET" && github.path(input) === accountPath) {
+      accountReads += 1;
+      if (accountReads > 1) return Response.json({ message: "Not Found" }, { status: 404 });
+    }
+    return github.fetch(input, init);
+  };
+  const store = new GitHubStore(env, eventuallyConsistentFetch);
+  const record = accountRecord();
+
+  const created = await store.createAccount(accountLookup, record);
+
+  assert.deepEqual(github.files.get(accountPath).document, record);
+  assert.deepEqual(created.document, record);
+  assert.equal(created.digest, await digestDocument(record));
+  assert.equal(accountReads, 1);
 });
 
 test("index SHA conflict refetches, merges UUID additions, and retries", async () => {
