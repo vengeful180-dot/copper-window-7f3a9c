@@ -68,7 +68,7 @@ export class GitHubStore {
   async get(path, { allowMissing = false } = {}) {
     const url = new URL(this.pathUrl(path));
     url.searchParams.set("ref", this.branch);
-    const response = await this.fetch(url, { headers: this.headers(), cache: "no-store" });
+    const response = await this.fetch(url.toString(), { headers: this.headers(), cache: "no-store" });
     if (response.status === 404 && allowMissing) return null;
     if (!response.ok) throw new GitHubError(response.status === 404 ? "A repository data file is missing." : "GitHub could not read the protected data.", response.status === 404 ? 404 : 502);
     const payload = await response.json();

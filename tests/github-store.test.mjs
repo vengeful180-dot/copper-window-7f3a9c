@@ -7,6 +7,17 @@ const env = { GITHUB_DATA_TOKEN: "test-token", GITHUB_OWNER: "example", GITHUB_R
 const firstId = "11111111-1111-4111-8111-111111111111";
 const concurrentId = "22222222-2222-4222-8222-222222222222";
 
+test("GitHub reads use a URL string accepted by the Workers fetch runtime", async () => {
+  let inputType = null;
+  const fetchImpl = async (input) => {
+    inputType = typeof input;
+    return Response.json({ type: "file", sha: "index-sha", content: btoa(JSON.stringify({ people: [] })) });
+  };
+  const store = new GitHubStore(env, fetchImpl);
+  await store.get("data/index.json");
+  assert.equal(inputType, "string");
+});
+
 test("new person creation writes an encrypted file and anonymous index only", async () => {
   const github = new MockGitHub({ "data/index.json": { people: [] } });
   const store = new GitHubStore(env, github.fetch);
