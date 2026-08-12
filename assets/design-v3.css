@@ -308,46 +308,29 @@ body {
 }
 
 .profile-chevron {
-  flex: 0 0 9px;
-  width: 9px;
-  height: 13px;
-  display: block;
-  position: relative;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  display: inline-block;
   border: 0;
   border-radius: 0;
-  background: none;
-  color: transparent;
+  background-color: #b6ccca;
+  -webkit-mask: url("icons/lucide-chevron-right.svg") center / 16px 16px no-repeat;
+  mask: url("icons/lucide-chevron-right.svg") center / 16px 16px no-repeat;
   font-size: 0;
-  filter: none;
-  transition: transform 200ms cubic-bezier(.2,.8,.2,1);
+  opacity: .82;
+  transition: transform 180ms cubic-bezier(.2,.8,.2,1), background-color 180ms ease, opacity 180ms ease;
 }
 
 .profile-chevron::before,
 .profile-chevron::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.profile-chevron::before {
-  display: none;
-}
-
-.profile-chevron::after {
-  left: 0;
-  top: 2px;
-  width: 7px;
-  height: 7px;
-  border-top: 1.5px solid #ffad82;
-  border-right: 1.5px solid #ffad82;
-  background: none;
-  transform: rotate(45deg);
+  content: none;
 }
 
 .account-chip:hover .profile-chevron {
-  background: none;
+  background-color: #ffb087;
   transform: translateX(2px);
-  filter: none;
+  opacity: 1;
 }
 
 .app-nav {
@@ -475,106 +458,59 @@ body {
 .portal-action-card em { color: rgba(236,245,245,.67); }
 
 .action-arrow {
-  --arrow-tail: #6dd8bc;
-  --arrow-head: #ffb086;
-  flex: 0 0 50px;
-  width: 50px;
-  height: 28px;
-  display: block;
-  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: inline-block;
   border: 0;
   border-radius: 0;
-  background: none;
-  color: transparent;
+  background-color: #ffc09c;
+  -webkit-mask: url("icons/lucide-arrow-right.svg") center / 27px 27px no-repeat;
+  mask: url("icons/lucide-arrow-right.svg") center / 27px 27px no-repeat;
   font-size: 0;
-  filter: none;
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+  opacity: .94;
+  transition: transform 190ms cubic-bezier(.2,.8,.2,1), background-color 190ms ease, opacity 190ms ease;
 }
 
 .work-action .action-arrow {
-  --arrow-tail: #78a9ff;
-  --arrow-head: #69ddbd;
+  background-color: #a9c9ff;
 }
 
 .action-arrow::before,
 .action-arrow::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.action-arrow::before {
-  left: 3px;
-  right: 7px;
-  top: 13px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--arrow-tail) 26%, var(--arrow-head));
-  transition: left 220ms ease;
-}
-
-.action-arrow::after {
-  right: 4px;
-  top: 7px;
-  width: 12px;
-  height: 12px;
-  border-top: 2px solid var(--arrow-head);
-  border-right: 2px solid var(--arrow-head);
-  transform: rotate(45deg);
+  content: none;
 }
 
 .portal-action-card:hover .action-arrow {
   border: 0;
-  background: none;
-  transform: translateX(5px);
-  filter: none;
+  background-color: #fff;
+  transform: translateX(4px);
+  opacity: 1;
 }
 
-.portal-action-card:hover .action-arrow::before { left: 0; }
-
 .mom-card-arrow {
-  width: 26px;
-  height: 26px;
-  display: block;
-  position: relative;
+  width: 28px;
+  height: 28px;
+  display: inline-block;
   border: 0;
   border-radius: 0;
-  background: none;
-  color: transparent;
+  background-color: #ffb087;
+  -webkit-mask: url("icons/lucide-arrow-up-right.svg") center / 24px 24px no-repeat;
+  mask: url("icons/lucide-arrow-up-right.svg") center / 24px 24px no-repeat;
   font-size: 0;
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+  opacity: .94;
+  transition: transform 190ms cubic-bezier(.2,.8,.2,1), background-color 190ms ease, opacity 190ms ease;
 }
 
 .mom-card-arrow::before,
 .mom-card-arrow::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.mom-card-arrow::before {
-  left: 4px;
-  bottom: 5px;
-  width: 23px;
-  height: 2px;
-  border-radius: 2px;
-  background: #ffad82;
-  transform: rotate(-45deg);
-  transform-origin: left center;
-}
-
-.mom-card-arrow::after {
-  right: 1px;
-  top: 1px;
-  width: 9px;
-  height: 9px;
-  border-top: 2px solid #ffad82;
-  border-right: 2px solid #ffad82;
+  content: none;
 }
 
 .mom-card:hover .mom-card-arrow {
-  background: none;
+  background-color: #fff;
   transform: translate(2px, -2px);
+  opacity: 1;
 }
 
 .mom-card {
