@@ -308,9 +308,9 @@ body {
 }
 
 .profile-chevron {
-  flex: 0 0 18px;
-  width: 18px;
-  height: 14px;
+  flex: 0 0 9px;
+  width: 9px;
+  height: 13px;
   display: block;
   position: relative;
   border: 0;
@@ -330,27 +330,23 @@ body {
 }
 
 .profile-chevron::before {
-  right: 2px;
-  top: 3px;
-  width: 7px;
-  height: 7px;
-  border-top: 1.5px solid #ffac7e;
-  border-right: 1.5px solid #ffac7e;
-  transform: rotate(45deg);
+  display: none;
 }
 
 .profile-chevron::after {
-  left: 1px;
-  top: 6px;
-  width: 13px;
-  height: 1.5px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #62d5b8, #83aefb 58%, #ffac7e);
+  left: 0;
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  border-top: 1.5px solid #ffad82;
+  border-right: 1.5px solid #ffad82;
+  background: none;
+  transform: rotate(45deg);
 }
 
 .account-chip:hover .profile-chevron {
   background: none;
-  transform: translateX(3px);
+  transform: translateX(2px);
   filter: none;
 }
 
@@ -537,8 +533,8 @@ body {
 .portal-action-card:hover .action-arrow::before { left: 0; }
 
 .mom-card-arrow {
-  width: 34px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   display: block;
   position: relative;
   border: 0;
@@ -557,28 +553,28 @@ body {
 }
 
 .mom-card-arrow::before {
-  left: 6px;
-  bottom: 6px;
-  width: 24px;
+  left: 4px;
+  bottom: 5px;
+  width: 23px;
   height: 2px;
   border-radius: 2px;
-  background: linear-gradient(90deg, #72a9ff, #68d9bc 48%, #ffad82);
+  background: #ffad82;
   transform: rotate(-45deg);
   transform-origin: left center;
 }
 
 .mom-card-arrow::after {
-  right: 3px;
-  top: 3px;
-  width: 10px;
-  height: 10px;
+  right: 1px;
+  top: 1px;
+  width: 9px;
+  height: 9px;
   border-top: 2px solid #ffad82;
   border-right: 2px solid #ffad82;
 }
 
 .mom-card:hover .mom-card-arrow {
   background: none;
-  transform: translate(3px, -3px);
+  transform: translate(2px, -2px);
 }
 
 .mom-card {
