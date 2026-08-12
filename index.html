@@ -8,7 +8,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:8787 http://localhost:8787 https://raw.githubusercontent.com https://*.workers.dev; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
     <meta name="theme-color" content="#f4f1eb">
     <title>Team Time Away</title>
-    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="assets/styles.css?v=20260812-login-fix">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -28,7 +28,7 @@
         <section id="loginPanel" class="auth-panel" role="tabpanel" aria-labelledby="loginTab">
           <form id="loginForm" class="auth-form" novalidate>
             <div class="field"><label for="loginName">Your name</label><input id="loginName" name="username" type="text" autocomplete="username" maxlength="80" required autofocus placeholder="Enter your full name"></div>
-            <div class="field"><label for="loginPassword">Your password</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="256" required></div>
+            <div class="field"><label for="loginPassword">Your password</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="256" required></div>
             <p id="loginError" class="form-message" role="alert"></p>
             <button class="button button-primary auth-submit" type="submit">Log in</button>
           </form>
@@ -37,8 +37,8 @@
         <section id="createPanel" class="auth-panel" role="tabpanel" aria-labelledby="createTab" hidden>
           <form id="createForm" class="auth-form" novalidate>
             <div class="field"><label for="createName">Your full name</label><input id="createName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter your full name"></div>
-            <div class="field"><label for="createPassword">Create a personal password</label><input id="createPassword" name="new-password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required><p class="field-hint">Use at least 12 characters. This password is never stored.</p></div>
-            <div class="field"><label for="confirmPassword">Confirm personal password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></div>
+            <div class="field"><label for="createPassword">Create a personal password</label><input id="createPassword" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="256" required><p class="field-hint">Use at least 8 characters. This password is never stored.</p></div>
+            <div class="field"><label for="confirmPassword">Confirm personal password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
             <div class="field invite-field"><label for="teamInvitePassword">Team invite password</label><input id="teamInvitePassword" type="password" autocomplete="off" maxlength="256" required><p class="field-hint">This is the existing shared team password. You need it only when creating the account.</p></div>
             <p id="createError" class="form-message" role="alert"></p>
             <button class="button button-primary auth-submit" type="submit">Create account</button>
@@ -180,6 +180,6 @@
     </dialog>
 
     <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="assets/app.js"></script>
+    <script type="module" src="assets/app.js?v=20260812-login-fix"></script>
   </body>
 </html>

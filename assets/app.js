@@ -1,4 +1,4 @@
-import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js";
+import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-login-fix";
 import {
   decryptJson,
   deriveSecrets,
@@ -8,7 +8,7 @@ import {
   importTeamAccess,
   makeKdf,
   unlockJson,
-} from "./crypto.js";
+} from "./crypto.js?v=20260812-login-fix";
 import {
   assertConfigRecord,
   assertPersonRecord,
@@ -32,9 +32,10 @@ import {
   toIsoDate,
   twoWorkWeeks,
   validateHolidayInput,
-} from "./model.js";
+} from "./model.js?v=20260812-login-fix";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const MIN_ACCOUNT_PASSWORD_LENGTH = 8;
 const SESSION_KEY = "quiet-leave-account-session-v1";
 const $ = (id) => document.getElementById(id);
 const state = {
@@ -351,10 +352,12 @@ async function loginAccount(event) {
   }
   state.busy = true;
   setButtonBusy(submit, true, "Logging in…", "Log in");
+  let credentialsAccepted = false;
   try {
     const lookup = await api.accountLookup(name);
     const accountSecrets = await deriveSecrets(password, lookup.kdf);
     const response = await api.accountSession({ name, verifier: accountSecrets.authToken });
+    credentialsAccepted = true;
     const decrypted = await decryptJson(response.envelope, accountSecrets);
     const account = assertAccountEnvelope(decrypted, response.accountId, name);
     const secrets = await importTeamAccess(account.team);
@@ -363,7 +366,11 @@ async function loginAccount(event) {
   } catch (error) {
     message.textContent = error instanceof ApiError && error.status === 401
       ? "Name or password is incorrect."
-      : (error instanceof ApiError ? error.message : "The account could not be opened. Please try again.");
+      : (error instanceof ApiError
+        ? error.message
+        : (credentialsAccepted
+          ? "Your password was accepted, but this page was out of date. Refresh it and try again."
+          : "The account could not be opened. Please try again."));
     $("loginPassword").select();
   } finally {
     state.busy = false;
@@ -382,7 +389,7 @@ async function createAccount(event) {
   const submit = $("createForm").querySelector("button[type='submit']");
   message.textContent = "";
   if (!name) message.textContent = "Enter your full name.";
-  else if (password.length < 12) message.textContent = "Choose a password with at least 12 characters.";
+  else if (password.length < MIN_ACCOUNT_PASSWORD_LENGTH) message.textContent = `Choose a password with at least ${MIN_ACCOUNT_PASSWORD_LENGTH} characters.`;
   else if (password !== confirmation) message.textContent = "The two personal passwords do not match.";
   else if (!teamPassword) message.textContent = "Enter the team invite password.";
   if (message.textContent) return;

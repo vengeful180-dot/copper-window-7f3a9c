@@ -100,9 +100,11 @@ test("homepage config validates links and merges different fields safely", () =>
   const original = { version: 2, groupName: "Dream Team", mom: "A", links };
   const latest = { ...original, mom: "B" };
   const desired = { ...original, groupName: "Great Team" };
-  assert.deepEqual(mergeConfigChanges(original, latest, desired), { ...latest, groupName: "Great Team" });
+  const legacyBridge = { weekLabel: "", announcement: "", secondaryAnnouncement: "" };
+  assert.deepEqual(mergeConfigChanges(original, latest, desired), { ...latest, ...legacyBridge, groupName: "Great Team" });
   assert.throws(() => mergeConfigChanges(original, latest, { ...original, mom: "C" }), /changed elsewhere/u);
   assert.equal(assertConfigRecord({ mom: "Legacy MOM", weekLabel: "", announcement: "", secondaryAnnouncement: "" }).groupName, "Dream Team");
+  assert.deepEqual(assertConfigRecord(original), { ...original, ...legacyBridge });
   assert.throws(() => assertConfigRecord({ ...original, links: [{ label: "Bad", url: "javascript:alert(1)" }, ...links.slice(1)] }), /https:\/\/ or http:\/\//u);
 });
 

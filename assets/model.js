@@ -190,6 +190,9 @@ export function assertConfigRecord(config) {
       groupName: "Dream Team",
       mom: config.mom,
       links: Array.from({ length: QUICK_LINK_COUNT }, () => ({ label: "", url: "" })),
+      weekLabel: "",
+      announcement: "",
+      secondaryAnnouncement: "",
     };
   }
 
@@ -211,7 +214,17 @@ export function assertConfigRecord(config) {
     }
     return { label, url };
   });
-  return { version: 2, groupName, mom: config.mom.trim(), links };
+  // Keep empty legacy fields in the encrypted document so an older cached page
+  // can still finish login while the cache-busted portal assets are loading.
+  return {
+    version: 2,
+    groupName,
+    mom: config.mom.trim(),
+    links,
+    weekLabel: "",
+    announcement: "",
+    secondaryAnnouncement: "",
+  };
 }
 
 export function mergeConfigChanges(original, latest, desired) {

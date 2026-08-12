@@ -39,6 +39,21 @@ test("holiday fields use a weekday-only calendar instead of the native date pick
   assert.match(app, /if \(!weekend\) day\.addEventListener/u);
 });
 
+test("personal accounts use an eight-character minimum and cache-busted portal assets", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="loginPassword"[^>]*minlength="8"/u);
+  assert.match(html, /id="createPassword"[^>]*minlength="8"/u);
+  assert.match(html, /id="confirmPassword"[^>]*minlength="8"/u);
+  assert.match(html, /Use at least 8 characters/u);
+  assert.match(html, /assets\/app\.js\?v=/u);
+  assert.match(html, /assets\/styles\.css\?v=/u);
+  assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
+  assert.match(app, /Your password was accepted, but this page was out of date/u);
+});
+
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
   const build = await readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8");
   assert.match(build, /\["index\.html", "robots\.txt", "assets"\]/u);
