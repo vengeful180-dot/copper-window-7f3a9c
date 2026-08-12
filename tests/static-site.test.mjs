@@ -63,6 +63,7 @@ test("header navigation stays truly centered and stable between pages", async ()
   assert.match(styles, /grid-template-columns:\s*minmax\(0, 1fr\) auto minmax\(0, 1fr\)/u);
   assert.match(styles, /\.app-nav\s*\{[^}]*justify-self:\s*center/u);
   assert.match(styles, /grid-template-areas:\s*"brand actions" "nav nav"/u);
+  assert.match(styles, /html\s*\{[^}]*overflow-y:\s*scroll[^}]*scrollbar-gutter:\s*stable/u);
   assert.match(html, /id="addHolidayButton"[^>]*type="button"(?![^>]*hidden)/u);
   assert.doesNotMatch(app, /\$\("addHolidayButton"\)\.hidden/u);
 });
@@ -86,7 +87,8 @@ test("homepage uses optimized generated architectural and green background artwo
   assert.match(html, /assets\/images\/dream-team-architecture\.webp/u);
   assert.match(html, /alt="Modern emerald-glass office buildings surrounded by landscaped trees"/u);
   assert.match(styles, /url\("images\/portal-green-background\.webp"\)/u);
-  assert.match(styles, /\.portal-hero-visual img\s*\{[^}]*object-fit:\s*cover/u);
+  assert.match(styles, /\.portal-hero-backdrop\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0[^}]*object-fit:\s*cover/u);
+  assert.doesNotMatch(html, /portal-hero-visual/u);
 });
 
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
