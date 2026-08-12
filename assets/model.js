@@ -1,5 +1,7 @@
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/gu;
+export const QUICK_LINK_COUNT = 6;
 
 export function normalizeName(value) {
   if (typeof value !== "string") return "";
@@ -178,25 +180,93 @@ export function assertPersonRecord(record, expectedId = null) {
 }
 
 export function assertConfigRecord(config) {
-  const fields = ["mom", "weekLabel", "announcement", "secondaryAnnouncement"];
-  if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("Invalid weekly information.");
-  for (const field of fields) {
-    if (typeof config[field] !== "string") throw new Error("Invalid weekly information.");
-    const limit = field.includes("announcement") || field === "announcement" ? 500 : 80;
-    if (config[field].length > limit) throw new Error("Weekly information is too long.");
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("Invalid homepage settings.");
+
+  // Accept the previous encrypted shape during deployment and upgrade it in memory.
+  if (config.version === undefined && ["mom", "weekLabel", "announcement", "secondaryAnnouncement"].every((field) => typeof config[field] === "string")) {
+    if (config.mom.length > 80) throw new Error("Homepage information is too long.");
+    return {
+      version: 2,
+      groupName: "Dream Team",
+      mom: config.mom,
+      links: Array.from({ length: QUICK_LINK_COUNT }, () => ({ label: "", url: "" })),
+    };
   }
-  return config;
+
+  if (config.version !== 2 || typeof config.groupName !== "string" || typeof config.mom !== "string" || !Array.isArray(config.links)) throw new Error("Invalid homepage settings.");
+  const groupName = normalizeName(config.groupName);
+  if (!groupName || groupName !== config.groupName || groupName.length > 80) throw new Error("Enter a valid group name.");
+  if (config.mom.length > 1_200) throw new Error("MOM can be up to 1,200 characters.");
+  if (config.links.length !== QUICK_LINK_COUNT) throw new Error(`Add exactly ${QUICK_LINK_COUNT} quick-link slots.`);
+  const links = config.links.map((link) => {
+    if (!link || typeof link !== "object" || Array.isArray(link) || Object.keys(link).sort().join(",") !== "label,url") throw new Error("Invalid quick link.");
+    const label = normalizeName(link.label);
+    const url = typeof link.url === "string" ? link.url.trim() : "";
+    if (label.length > 40 || url.length > 500) throw new Error("A quick link is too long.");
+    if (Boolean(label) !== Boolean(url)) throw new Error("Each quick link needs both a name and a URL.");
+    if (url) {
+      let parsed;
+      try { parsed = new URL(url); } catch { throw new Error("Use a complete link beginning with https:// or http://."); }
+      if (!["https:", "http:"].includes(parsed.protocol)) throw new Error("Quick links must begin with https:// or http://.");
+    }
+    return { label, url };
+  });
+  return { version: 2, groupName, mom: config.mom.trim(), links };
 }
 
 export function mergeConfigChanges(original, latest, desired) {
-  assertConfigRecord(original);
-  assertConfigRecord(latest);
-  assertConfigRecord(desired);
-  const next = { ...latest };
-  for (const field of Object.keys(desired)) {
-    if (desired[field] === original[field]) continue;
-    if (latest[field] !== original[field]) throw new Error(`“${field}” changed elsewhere. Reopen Admin before replacing it.`);
-    next[field] = desired[field];
+  const safeOriginal = assertConfigRecord(original);
+  const safeLatest = assertConfigRecord(latest);
+  const safeDesired = assertConfigRecord(desired);
+  const next = structuredClone(safeLatest);
+  for (const field of ["groupName", "mom", "links"]) {
+    const before = JSON.stringify(safeOriginal[field]);
+    if (JSON.stringify(safeDesired[field]) === before) continue;
+    if (JSON.stringify(safeLatest[field]) !== before) throw new Error(`“${field}” changed elsewhere. Reopen Admin before replacing it.`);
+    next[field] = structuredClone(safeDesired[field]);
   }
   return next;
+}
+
+export function assertPresenceRecord(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record) || record.version !== 1 || !Array.isArray(record.members) || record.members.length > 100) throw new Error("Invalid work-location schedule.");
+  const accountIds = new Set();
+  const names = new Set();
+  const members = record.members.map((member) => {
+    if (!member || typeof member !== "object" || Array.isArray(member) || Object.keys(member).sort().join(",") !== "accountId,displayName,officeDays") throw new Error("Invalid work-location member.");
+    const displayName = normalizeName(member.displayName);
+    const nameKey = canonicalName(displayName);
+    if (!UUID.test(member.accountId ?? "") || !displayName || displayName !== member.displayName || accountIds.has(member.accountId) || names.has(nameKey) || !Array.isArray(member.officeDays) || member.officeDays.length > 520) throw new Error("Invalid work-location member.");
+    const officeDays = [];
+    const seenDays = new Set();
+    for (const iso of member.officeDays) {
+      if (!isIsoDate(iso) || isWeekendIso(iso) || seenDays.has(iso)) throw new Error("Invalid office day.");
+      seenDays.add(iso);
+      officeDays.push(iso);
+    }
+    accountIds.add(member.accountId);
+    names.add(nameKey);
+    return { accountId: member.accountId.toLowerCase(), displayName, officeDays: officeDays.sort(compareIsoDates) };
+  });
+  members.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  return { version: 1, members };
+}
+
+export function twoWorkWeeks(now = new Date()) {
+  const firstMonday = startOfWeek(now);
+  return [0, 1].map((weekOffset) => {
+    const monday = new Date(firstMonday);
+    monday.setDate(monday.getDate() + weekOffset * 7);
+    const days = Array.from({ length: 5 }, (_, dayOffset) => {
+      const date = new Date(monday);
+      date.setDate(date.getDate() + dayOffset);
+      return toIsoDate(date);
+    });
+    return { start: days[0], end: days[4], days };
+  });
+}
+
+export function holidayForAccountDay(people, displayName, iso) {
+  const person = findPersonByName(people, displayName);
+  return person?.holidays.find((holiday) => holiday.start <= iso && holiday.end >= iso) ?? null;
 }

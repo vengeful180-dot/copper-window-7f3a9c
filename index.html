@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="assets/styles.css">
   </head>
   <body>
-    <a class="skip-link" href="#mainContent">Skip to calendar</a>
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
 
     <main id="unlockView" class="unlock-view">
       <section class="unlock-card" aria-labelledby="unlockTitle">
@@ -52,65 +52,73 @@
 
     <div id="appView" class="app-shell" hidden>
       <header class="app-header">
-        <div class="brand-inline">
+        <button id="brandHomeButton" class="brand-inline brand-home" type="button" aria-label="Open homepage">
           <div class="brand-mark brand-mark-small" aria-hidden="true"><span></span><span></span><span></span></div>
-          <div><p class="eyebrow">Team time away</p><p class="header-date" id="headerDate"></p></div>
-        </div>
+          <div><p id="headerGroupName" class="eyebrow">Dream Team</p><p class="header-date" id="headerDate"></p></div>
+        </button>
+        <nav class="app-nav" aria-label="Planner pages">
+          <button id="navHome" class="nav-button is-active" type="button">Home</button>
+          <button id="navHolidays" class="nav-button" type="button">Holidays</button>
+          <button id="navWork" class="nav-button" type="button">Work location</button>
+        </nav>
         <div class="header-actions">
           <div class="account-chip" aria-label="Signed-in account"><span class="account-avatar" aria-hidden="true"></span><span id="signedInName"></span></div>
           <button id="adminButton" class="button button-quiet" type="button">Admin</button>
           <button id="lockButton" class="button button-quiet" type="button">Log out</button>
-          <button id="addHolidayButton" class="button button-primary" type="button"><span aria-hidden="true">+</span> Add holiday</button>
+          <button id="addHolidayButton" class="button button-primary" type="button" hidden><span aria-hidden="true">+</span> Add holiday</button>
         </div>
       </header>
 
       <div id="backendBanner" class="status-banner" role="status" hidden></div>
 
-      <section class="weekly-strip" aria-label="Weekly information">
-        <article><p class="strip-label">MOM</p><p id="momValue" class="strip-value empty-copy"></p></article>
-        <article><p class="strip-label">This week</p><p id="weekLabelValue" class="strip-value empty-copy"></p></article>
-        <article class="announcement-card"><p class="strip-label">Announcement</p><p id="announcementValue" class="strip-value empty-copy"></p><p id="secondaryAnnouncementValue" class="strip-secondary"></p></article>
-      </section>
+      <main id="mainContent">
+        <section id="homePage" class="page-view portal-page" aria-labelledby="homeTitle">
+          <div class="portal-hero">
+            <div><p class="eyebrow">Private team space</p><h1 id="homeTitle"><span id="homeGroupName">Dream Team</span>, all in one place.</h1><p>Jump into the team calendar, plan where you are working, or open one of your shared shortcuts.</p></div>
+            <button id="editHomeButton" class="button button-secondary" type="button">Edit homepage</button>
+          </div>
 
-      <div id="mainContent" class="workspace">
-        <aside class="sidebar" aria-label="Team summary">
-          <section class="summary-card spotlight-card">
-            <div class="card-heading"><div><p class="eyebrow">Right now</p><h2>Who&rsquo;s away today</h2></div><span id="awayTodayCount" class="count-badge">0</span></div>
-            <div id="awayTodayList" class="person-list"></div>
-          </section>
-          <section class="summary-card">
-            <div class="card-heading"><div><p class="eyebrow">Next seven days</p><h2>Who&rsquo;s away this week</h2></div><span id="awayWeekCount" class="count-badge">0</span></div>
-            <div id="awayWeekList" class="person-list"></div>
-          </section>
-          <section class="summary-card team-card">
-            <div class="card-heading"><div><p class="eyebrow">People</p><h2>Team summary</h2></div><span id="peopleCount" class="count-badge">0</span></div>
-            <div id="peopleList" class="team-list"></div>
-          </section>
-        </aside>
-
-        <section class="calendar-card" aria-labelledby="monthTitle">
-          <div class="calendar-toolbar">
-            <div><p class="eyebrow">Holiday calendar</p><h1 id="monthTitle"></h1></div>
-            <div class="month-controls" aria-label="Calendar navigation">
-              <button id="previousMonth" class="icon-button" type="button" aria-label="Previous month">&larr;</button>
-              <button id="todayButton" class="button button-secondary" type="button">Today</button>
-              <button id="nextMonth" class="icon-button" type="button" aria-label="Next month">&rarr;</button>
-            </div>
+          <div class="portal-grid">
+            <button id="homeHolidaysButton" class="portal-action-card holidays-action" type="button">
+              <span class="action-icon" aria-hidden="true">H</span><span><small>Team planning</small><strong>Holidays</strong><em>See time away and add holiday dates</em></span><span class="action-arrow" aria-hidden="true">&rarr;</span>
+            </button>
+            <button id="homeWorkButton" class="portal-action-card work-action" type="button">
+              <span class="action-icon" aria-hidden="true">W</span><span><small>This week + next</small><strong>Work location</strong><em>Choose home or office for each day</em></span><span class="action-arrow" aria-hidden="true">&rarr;</span>
+            </button>
+            <article class="mom-card">
+              <div><p class="eyebrow">MOM</p><h2>Meeting notes</h2></div><p id="momValue" class="mom-copy empty-copy"></p>
+            </article>
+            <section class="quick-links-card" aria-labelledby="quickLinksTitle">
+              <div class="section-heading"><div><p class="eyebrow">Shortcuts</p><h2 id="quickLinksTitle">Quick links</h2></div><span>6 editable spaces</span></div>
+              <div id="quickLinks" class="quick-links"></div>
+            </section>
           </div>
-          <div id="calendarLoading" class="calendar-loading" role="status">Opening the protected calendar&hellip;</div>
-          <div id="calendarEmpty" class="calendar-empty" hidden>
-            <div class="empty-orbit" aria-hidden="true"><span></span></div>
-            <h2>No holidays added yet</h2>
-            <p>The first holiday automatically creates the first person.</p>
-            <button id="emptyAddButton" class="button button-primary" type="button">Add the first holiday</button>
-          </div>
-          <div id="calendarDesktop" class="calendar-desktop" hidden>
-            <div class="weekday-row" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
-            <div id="calendarGrid" class="calendar-grid" role="grid" aria-labelledby="monthTitle"></div>
-          </div>
-          <div id="mobileAgenda" class="mobile-agenda" hidden></div>
         </section>
-      </div>
+
+        <section id="holidaysPage" class="page-view holidays-page" aria-labelledby="monthTitle" hidden>
+          <div class="workspace">
+            <aside class="sidebar" aria-label="Team summary">
+              <section class="summary-card spotlight-card"><div class="card-heading"><div><p class="eyebrow">Right now</p><h2>Who&rsquo;s away today</h2></div><span id="awayTodayCount" class="count-badge">0</span></div><div id="awayTodayList" class="person-list"></div></section>
+              <section class="summary-card"><div class="card-heading"><div><p class="eyebrow">This week</p><h2>Who&rsquo;s away</h2></div><span id="awayWeekCount" class="count-badge">0</span></div><div id="awayWeekList" class="person-list"></div></section>
+              <section class="summary-card team-card"><div class="card-heading"><div><p class="eyebrow">People</p><h2>Holiday records</h2></div><span id="peopleCount" class="count-badge">0</span></div><div id="peopleList" class="team-list"></div></section>
+            </aside>
+
+            <section class="calendar-card">
+              <div class="calendar-toolbar"><div><p class="eyebrow">Holiday calendar</p><h1 id="monthTitle"></h1></div><div class="month-controls" aria-label="Calendar navigation"><button id="previousMonth" class="icon-button" type="button" aria-label="Previous month">&larr;</button><button id="todayButton" class="button button-secondary" type="button">Today</button><button id="nextMonth" class="icon-button" type="button" aria-label="Next month">&rarr;</button></div></div>
+              <div id="calendarLoading" class="calendar-loading" role="status">Opening the protected calendar&hellip;</div>
+              <div id="calendarEmpty" class="calendar-empty" hidden><div class="empty-orbit" aria-hidden="true"><span></span></div><h2>No holidays added yet</h2><p>The first holiday automatically creates the first holiday record.</p><button id="emptyAddButton" class="button button-primary" type="button">Add the first holiday</button></div>
+              <div id="calendarDesktop" class="calendar-desktop" hidden><div class="weekday-row" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div id="calendarGrid" class="calendar-grid" role="grid" aria-labelledby="monthTitle"></div></div>
+              <div id="mobileAgenda" class="mobile-agenda" hidden></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="workPage" class="page-view work-page" aria-labelledby="workTitle" hidden>
+          <div class="page-heading"><div><p class="eyebrow">Team rhythm</p><h1 id="workTitle">Where we&rsquo;re working</h1><p>This week and next week are always shown. Everyone starts at home; choose your own office days.</p></div><div class="work-legend" aria-label="Schedule legend"><span class="legend-home">Home</span><span class="legend-office">Office</span><span class="legend-holiday">Holiday</span></div></div>
+          <div id="workSchedule" class="work-schedule"></div>
+          <p id="workMessage" class="form-message work-message" role="status"></p>
+        </section>
+      </main>
     </div>
 
     <dialog id="holidayDialog" class="modal">
@@ -146,20 +154,23 @@
       <section class="modal-card">
         <div class="modal-heading"><div><p class="eyebrow">Restricted controls</p><h2>Admin</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="adminDialog" aria-label="Close">&times;</button></div>
         <form id="adminLoginForm" novalidate>
-          <p class="modal-intro">Enter the separate Admin password to update weekly information or manage people.</p>
+          <p class="modal-intro">Enter the separate Admin password to edit the homepage or manage holiday records.</p>
           <div class="field"><label for="adminPassword">Admin password</label><input id="adminPassword" type="password" autocomplete="current-password" maxlength="256" required></div>
           <p id="adminLoginMessage" class="form-message" role="alert"></p>
           <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="adminDialog">Cancel</button><button class="button button-primary" type="submit">Continue</button></div>
         </form>
         <div id="adminPanel" hidden>
           <form id="configForm" novalidate>
-            <div class="admin-section-heading"><div><p class="eyebrow">Homepage</p><h3>Weekly information</h3></div></div>
-            <div class="admin-grid"><div class="field"><label for="momInput">MOM</label><input id="momInput" maxlength="80"></div><div class="field"><label for="weekLabelInput">Week label</label><input id="weekLabelInput" maxlength="80"></div><div class="field admin-full"><label for="announcementInput">Announcement</label><textarea id="announcementInput" maxlength="500" rows="3"></textarea></div><div class="field admin-full"><label for="secondaryAnnouncementInput">Secondary announcement <span class="optional">optional</span></label><textarea id="secondaryAnnouncementInput" maxlength="500" rows="2"></textarea></div></div>
+            <div class="admin-section-heading"><div><p class="eyebrow">Homepage</p><h3>Portal settings</h3></div></div>
+            <div class="field"><label for="groupNameInput">Group name</label><input id="groupNameInput" maxlength="80" required></div>
+            <div class="field"><label for="momInput">MOM</label><textarea id="momInput" maxlength="1200" rows="5" placeholder="Add meeting notes, decisions, or the MOM link"></textarea></div>
+            <div class="admin-section-heading link-editor-heading"><div><p class="eyebrow">Shortcuts</p><h3>Six quick links</h3></div></div>
+            <div id="adminLinks" class="admin-links"></div>
             <p id="configFormMessage" class="form-message" role="alert"></p>
-            <div class="modal-actions"><span class="action-spacer"></span><button class="button button-primary" type="submit">Save weekly info</button></div>
+            <div class="modal-actions"><span class="action-spacer"></span><button class="button button-primary" type="submit">Save homepage</button></div>
           </form>
           <div class="admin-divider"></div>
-          <section aria-labelledby="managePeopleTitle"><div class="admin-section-heading"><div><p class="eyebrow">Directory</p><h3 id="managePeopleTitle">Manage people</h3></div></div><div id="adminPeopleList" class="admin-people-list"></div></section>
+          <section aria-labelledby="managePeopleTitle"><div class="admin-section-heading"><div><p class="eyebrow">Holiday calendar</p><h3 id="managePeopleTitle">Manage holiday records</h3></div></div><div id="adminPeopleList" class="admin-people-list"></div></section>
         </div>
       </section>
     </dialog>

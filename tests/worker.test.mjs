@@ -73,9 +73,11 @@ test("Worker-backed reads return fresh encrypted repository files", async () => 
   const env = await workerEnv();
   const accountToken = await createAccountToken(env, personId);
   const config = await encryptedDocument({ mom: "Fresh", weekLabel: "", announcement: "", secondaryAnnouncement: "" });
+  const presence = await encryptedDocument({ version: 1, members: [] });
   const person = await encryptedDocument({ id: personId, name: "Fresh person", holidays: [] });
   const github = new MockGitHub({
     "data/config.enc.json": config,
+    "data/presence.enc.json": presence,
     "data/index.json": { people: [personId] },
     [`data/people/${personId}.enc.json`]: person,
   });
@@ -85,11 +87,29 @@ test("Worker-backed reads return fresh encrypted repository files", async () => 
   assert.equal(bootstrap.status, 200);
   assert.deepEqual((await bootstrap.json()).file.document, config);
 
-  for (const [path, expected] of [["/api/index", { people: [personId] }], ["/api/config", config], [`/api/person/${personId}`, person]]) {
+  for (const [path, expected] of [["/api/index", { people: [personId] }], ["/api/config", config], ["/api/presence", presence], [`/api/person/${personId}`, person]]) {
     const response = await worker.fetch(jsonRequest(path, { method: "GET", authorization: `Session ${accountToken}` }), env);
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).file.document, expected);
   }
+});
+
+test("account sessions can update the encrypted work-location schedule", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const accountToken = await createAccountToken(env, personId);
+  const before = await encryptedDocument({ version: 1, members: [] });
+  const after = await encryptedDocument({ version: 1, members: [{ accountId: personId, displayName: "Encrypted", officeDays: ["2026-08-13"] }] });
+  const github = new MockGitHub({ "data/presence.enc.json": before });
+  const worker = createWorker(github.fetch);
+  const response = await worker.fetch(jsonRequest("/api/presence", {
+    method: "PUT",
+    body: { document: after, expectedDigest: await digestDocument(before) },
+    authorization: `Session ${accountToken}`,
+    ip: "203.0.113.12",
+  }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(github.files.get("data/presence.enc.json").document, after);
 });
 
 test("Admin token can update encrypted MOM/config data", async () => {

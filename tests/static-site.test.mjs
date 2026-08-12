@@ -10,6 +10,11 @@ test("public shell is unlisted and contains no protected seed content", async ()
   assert.match(html, /id="loginForm"/u);
   assert.match(html, /id="createForm"/u);
   assert.match(html, /id="appView"[^>]*hidden/u);
+  assert.match(html, /id="homePage"/u);
+  assert.match(html, /id="holidaysPage"[^>]*hidden/u);
+  assert.match(html, /id="workPage"[^>]*hidden/u);
+  assert.match(html, /id="quickLinks"/u);
+  assert.doesNotMatch(html, /id="announcementValue"|id="weekLabelValue"/u);
 });
 
 test("frontend never uses persistent local storage or unsafe HTML insertion", async () => {
@@ -37,6 +42,7 @@ test("holiday fields use a weekday-only calendar instead of the native date pick
 test("account records remain server-side and are excluded from the Pages artifact", async () => {
   const build = await readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8");
   assert.match(build, /\["index\.html", "robots\.txt", "assets"\]/u);
+  assert.match(build, /"presence\.enc\.json"/u);
   assert.doesNotMatch(build, /data[\\/]accounts/u);
   assert.doesNotMatch(build, /path\.join\(root, "data"\)(?!,)/u);
 });

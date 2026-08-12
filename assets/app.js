@@ -12,9 +12,11 @@ import {
 import {
   assertConfigRecord,
   assertPersonRecord,
+  assertPresenceRecord,
   canonicalName,
   endOfWeek,
   findPersonByName,
+  holidayForAccountDay,
   isWeekendIso,
   monthCells,
   mergeConfigChanges,
@@ -28,6 +30,7 @@ import {
   startOfWeek,
   todayIso,
   toIsoDate,
+  twoWorkWeeks,
   validateHolidayInput,
 } from "./model.js";
 
@@ -45,6 +48,9 @@ const state = {
   configMeta: null,
   people: [],
   personMeta: new Map(),
+  presence: { version: 1, members: [] },
+  presenceMeta: null,
+  currentView: "home",
   month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   adminToken: null,
   adminConfigBase: null,
@@ -225,10 +231,12 @@ async function loadRepositoryState(secrets, sessionToken, knownConfig = null) {
   let index;
   let loadedPeople;
   let configMeta;
+  let presenceMeta;
   if (apiConfigured()) {
-    const [indexResponse, configResponse] = await Promise.all([
+    const [indexResponse, configResponse, presenceResponse] = await Promise.all([
       api.readIndex(sessionToken),
       api.readConfig(sessionToken),
+      api.readPresence(sessionToken),
     ]);
     const indexMeta = await verifiedRepositoryFile(indexResponse.file);
     index = validateIndex(indexMeta.document);
@@ -239,6 +247,7 @@ async function loadRepositoryState(secrets, sessionToken, knownConfig = null) {
       return { person, meta };
     }));
     configMeta = await verifiedRepositoryFile(configResponse.file);
+    presenceMeta = await verifiedRepositoryFile(presenceResponse.file);
   } else {
     index = validateIndex(await fetchDataJson("index.json"));
     loadedPeople = await Promise.all(index.people.map(async (id) => {
@@ -247,13 +256,17 @@ async function loadRepositoryState(secrets, sessionToken, knownConfig = null) {
       return { person, meta };
     }));
     configMeta = knownConfig ?? await loadEncryptedFile("config.enc.json");
+    presenceMeta = await loadEncryptedFile("presence.enc.json");
   }
   const config = assertConfigRecord(await decryptJson(configMeta.document, secrets));
+  const presence = assertPresenceRecord(await decryptJson(presenceMeta.document, secrets));
   return {
     people: loadedPeople.map(({ person }) => person).sort((a, b) => a.name.localeCompare(b.name)),
     personMeta: new Map(loadedPeople.map(({ person, meta }) => [person.id, meta])),
     config,
     configMeta,
+    presence,
+    presenceMeta,
   };
 }
 
@@ -294,12 +307,16 @@ async function completeAccountLogin({ account, token, expiresIn, teamAccess, sec
   state.configMeta = repositoryState.configMeta;
   state.people = repositoryState.people;
   state.personMeta = repositoryState.personMeta;
+  state.presence = repositoryState.presence;
+  state.presenceMeta = repositoryState.presenceMeta;
   state.unlocked = true;
   $("signedInName").textContent = account.displayName;
   $("unlockView").hidden = true;
   $("appView").hidden = false;
   storeSession();
+  setView(location.hash.replace(/^#/u, "") || "home", { updateHash: false });
   renderAll();
+  void ensureCurrentAccountInPresence();
   void checkBackend();
 }
 
@@ -456,13 +473,17 @@ function lockPlanner() {
   state.configMeta = null;
   state.people = [];
   state.personMeta = new Map();
+  state.presence = { version: 1, members: [] };
+  state.presenceMeta = null;
+  state.currentView = "home";
   state.adminToken = null;
   state.adminConfigBase = null;
   state.overlapConfirmation = null;
   $("momValue").textContent = "";
-  $("weekLabelValue").textContent = "";
-  $("announcementValue").textContent = "";
-  $("secondaryAnnouncementValue").textContent = "";
+  $("homeGroupName").textContent = "Dream Team";
+  $("headerGroupName").textContent = "Dream Team";
+  $("quickLinks").replaceChildren();
+  $("workSchedule").replaceChildren();
   $("signedInName").textContent = "";
   for (const id of ["awayTodayList", "awayWeekList", "peopleList", "calendarGrid", "mobileAgenda", "adminPeopleList"]) $(id).replaceChildren();
   $("adminPassword").value = "";
@@ -478,15 +499,188 @@ function setProtectedText(node, value, fallback) {
   node.classList.toggle("empty-copy", !value);
 }
 
-function renderWeekly() {
-  const weekStart = startOfWeek();
-  const weekEnd = endOfWeek();
-  const computedWeek = `${friendlyDate(toIsoDate(weekStart))} – ${fullFriendlyDate(toIsoDate(weekEnd))}`;
-  setProtectedText($("momValue"), state.config.mom, "Not set");
-  setProtectedText($("weekLabelValue"), state.config.weekLabel, computedWeek);
-  setProtectedText($("announcementValue"), state.config.announcement, "No announcement this week");
-  $("secondaryAnnouncementValue").textContent = state.config.secondaryAnnouncement;
-  $("secondaryAnnouncementValue").hidden = !state.config.secondaryAnnouncement;
+function setView(requestedView, { updateHash = true } = {}) {
+  const view = ["home", "holidays", "work"].includes(requestedView) ? requestedView : "home";
+  state.currentView = view;
+  $("homePage").hidden = view !== "home";
+  $("holidaysPage").hidden = view !== "holidays";
+  $("workPage").hidden = view !== "work";
+  $("addHolidayButton").hidden = view !== "holidays";
+  for (const [name, id] of [["home", "navHome"], ["holidays", "navHolidays"], ["work", "navWork"]]) {
+    const button = $(id);
+    const active = name === view;
+    button.classList.toggle("is-active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
+  if (updateHash && location.hash !== `#${view}`) history.pushState(null, "", `#${view}`);
+  if (state.unlocked) {
+    if (view === "work") renderWorkSchedule();
+    if (view === "holidays") renderCalendar();
+    document.title = `${state.config?.groupName ?? "Dream Team"} · ${view === "home" ? "Home" : view === "work" ? "Work location" : "Holidays"}`;
+  }
+}
+
+function renderHome() {
+  const groupName = state.config.groupName;
+  $("homeGroupName").textContent = groupName;
+  $("headerGroupName").textContent = groupName;
+  setProtectedText($("momValue"), state.config.mom, "No MOM has been added yet. Use Edit homepage when you are ready.");
+  const links = $("quickLinks");
+  links.replaceChildren();
+  state.config.links.forEach((link, index) => {
+    if (link.url) {
+      const anchor = makeElement("a", "quick-link");
+      anchor.href = link.url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.append(makeElement("span", "quick-link-number", String(index + 1).padStart(2, "0")), makeElement("strong", "", link.label), makeElement("span", "quick-link-arrow", "↗"));
+      links.append(anchor);
+    } else {
+      const button = makeElement("button", "quick-link is-empty");
+      button.type = "button";
+      button.append(makeElement("span", "quick-link-number", String(index + 1).padStart(2, "0")), makeElement("strong", "", `Link ${index + 1}`), makeElement("span", "quick-link-placeholder", "Not set"));
+      button.addEventListener("click", openAdmin);
+      links.append(button);
+    }
+  });
+}
+
+async function verifiedPresence(file) {
+  if (!file?.document || typeof file.digest !== "string") throw new Error("The repository did not confirm the work schedule.");
+  const presence = assertPresenceRecord(await decryptJson(file.document, state.secrets));
+  if (await digestDocument(file.document) !== file.digest) throw new Error("The work schedule confirmation did not match.");
+  return { presence, meta: { document: file.document, digest: file.digest, sha: file.sha ?? null } };
+}
+
+async function commitPresenceMutation(mutate) {
+  let base = structuredClone(state.presence);
+  let meta = state.presenceMeta;
+  if (!meta) throw new UserMessageError("The work-location schedule is not ready yet.");
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const next = assertPresenceRecord(mutate(structuredClone(base)));
+    const document = await encryptJson(next, state.secrets);
+    try {
+      const response = await api.updatePresence({ document, expectedDigest: meta.digest }, state.sessionToken);
+      const verified = await verifiedPresence(response.file);
+      state.presence = verified.presence;
+      state.presenceMeta = verified.meta;
+      renderWorkSchedule();
+      return verified.presence;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409 && error.details?.latest?.document) {
+        base = assertPresenceRecord(await decryptJson(error.details.latest.document, state.secrets));
+        meta = error.details.latest;
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new UserMessageError("The work schedule changed at the same time. Please try once more.");
+}
+
+async function ensureCurrentAccountInPresence() {
+  if (!state.unlocked || !state.account || !apiConfigured()) return;
+  const existing = state.presence.members.find((member) => member.accountId === state.account.id);
+  if (existing?.displayName === state.account.displayName) return;
+  try {
+    await commitPresenceMutation((latest) => {
+      const member = latest.members.find((candidate) => candidate.accountId === state.account.id);
+      if (member) member.displayName = state.account.displayName;
+      else latest.members.push({ accountId: state.account.id, displayName: state.account.displayName, officeDays: [] });
+      return latest;
+    });
+  } catch (error) {
+    showToast(error.message || "Your work-location row could not be synced yet.", "error");
+  }
+}
+
+function workStatusNode(member, iso) {
+  const holiday = holidayForAccountDay(state.people, member.displayName, iso);
+  if (holiday) {
+    const status = makeElement("span", "work-status is-holiday", "Holiday");
+    status.title = holidayLabel(holiday);
+    return status;
+  }
+  const office = member.officeDays.includes(iso);
+  const ownRow = member.accountId === state.account?.id;
+  const status = makeElement(ownRow ? "button" : "span", `work-status ${office ? "is-office" : "is-home"}`, office ? "Office" : "Home");
+  if (ownRow) {
+    status.type = "button";
+    status.setAttribute("aria-pressed", String(office));
+    status.setAttribute("aria-label", `${friendlyDate(iso, { weekday: "long", day: "numeric", month: "long" })}: ${office ? "work at office" : "work from home"}. Select to change.`);
+    status.addEventListener("click", () => toggleOfficeDay(iso));
+  }
+  return status;
+}
+
+function renderWorkSchedule() {
+  const schedule = $("workSchedule");
+  schedule.replaceChildren();
+  if (!state.presence.members.length) {
+    const empty = makeElement("section", "work-empty");
+    empty.append(makeElement("h2", "", "No team accounts yet"), makeElement("p", "", "Each person appears here automatically after creating an account and logging in."));
+    schedule.append(empty);
+    return;
+  }
+  const dayFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  twoWorkWeeks().forEach((week, weekIndex) => {
+    const card = makeElement("section", "work-week-card");
+    const heading = makeElement("div", "work-week-heading");
+    const copy = makeElement("div");
+    copy.append(makeElement("p", "eyebrow", weekIndex === 0 ? "In progress" : "Coming next"), makeElement("h2", "", weekIndex === 0 ? "This week" : "Next week"), makeElement("span", "", `${friendlyDate(week.start)} – ${fullFriendlyDate(week.end)}`));
+    heading.append(copy);
+    card.append(heading);
+    const scroller = makeElement("div", "work-table-scroll");
+    const table = makeElement("div", "work-table");
+    const header = makeElement("div", "work-row work-table-header");
+    header.append(makeElement("div", "work-person-cell", "Team member"));
+    for (const iso of week.days) {
+      const cell = makeElement("div", "work-day-heading", dayFormatter.format(new Date(`${iso}T12:00:00`)));
+      if (iso === todayIso()) cell.classList.add("is-today");
+      header.append(cell);
+    }
+    table.append(header);
+    for (const member of state.presence.members) {
+      const row = makeElement("div", "work-row");
+      const name = makeElement("div", "work-person-cell");
+      name.style.setProperty("--person-hue", personHue(member.accountId));
+      name.append(makeElement("span", "person-dot"), makeElement("strong", "", member.displayName));
+      if (member.accountId === state.account?.id) name.append(makeElement("small", "", "You"));
+      row.append(name);
+      for (const iso of week.days) {
+        const cell = makeElement("div", "work-day-cell");
+        if (iso === todayIso()) cell.classList.add("is-today");
+        cell.append(workStatusNode(member, iso));
+        row.append(cell);
+      }
+      table.append(row);
+    }
+    scroller.append(table);
+    card.append(scroller);
+    schedule.append(card);
+  });
+}
+
+async function toggleOfficeDay(iso) {
+  if (state.busy || !state.account || isWeekendIso(iso)) return;
+  if (holidayForAccountDay(state.people, state.account.displayName, iso)) return;
+  state.busy = true;
+  $("workMessage").textContent = "Saving your choice…";
+  try {
+    await commitPresenceMutation((latest) => {
+      const member = latest.members.find((candidate) => candidate.accountId === state.account.id);
+      if (!member) throw new UserMessageError("Your account row is still being prepared. Try again in a moment.");
+      member.officeDays = member.officeDays.includes(iso) ? member.officeDays.filter((day) => day !== iso) : [...member.officeDays, iso];
+      return latest;
+    });
+    $("workMessage").textContent = "Saved.";
+    window.setTimeout(() => { if ($("workMessage").textContent === "Saved.") $("workMessage").textContent = ""; }, 1800);
+  } catch (error) {
+    $("workMessage").textContent = error instanceof UserMessageError || error instanceof ApiError ? error.message : "Your work location could not be saved.";
+  } finally {
+    state.busy = false;
+  }
 }
 
 function activeHoliday(person, start, end = start) {
@@ -618,9 +812,10 @@ function renderCalendar() {
 
 function renderAll() {
   $("headerDate").textContent = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-  renderWeekly();
+  renderHome();
   renderSummaries();
   renderCalendar();
+  renderWorkSchedule();
   if (!$("adminPanel").hidden) renderAdminPeople();
 }
 
@@ -673,6 +868,8 @@ async function reloadPeople() {
   state.personMeta = repositoryState.personMeta;
   state.config = repositoryState.config;
   state.configMeta = repositoryState.configMeta;
+  state.presence = repositoryState.presence;
+  state.presenceMeta = repositoryState.presenceMeta;
   renderAll();
 }
 
@@ -855,13 +1052,40 @@ function openAdmin() {
 function showAdminPanel() {
   $("adminLoginForm").hidden = true;
   $("adminPanel").hidden = false;
+  $("groupNameInput").value = state.config.groupName;
   $("momInput").value = state.config.mom;
-  $("weekLabelInput").value = state.config.weekLabel;
-  $("announcementInput").value = state.config.announcement;
-  $("secondaryAnnouncementInput").value = state.config.secondaryAnnouncement;
+  renderAdminLinks();
   state.adminConfigBase = structuredClone(state.config);
   $("configFormMessage").textContent = "";
   renderAdminPeople();
+}
+
+function renderAdminLinks() {
+  const editor = $("adminLinks");
+  editor.replaceChildren();
+  state.config.links.forEach((link, index) => {
+    const row = makeElement("div", "admin-link-row");
+    const number = makeElement("span", "admin-link-number", String(index + 1).padStart(2, "0"));
+    const nameField = makeElement("label", "field");
+    nameField.append(makeElement("span", "", "Button name"));
+    const name = document.createElement("input");
+    name.className = "link-label";
+    name.maxLength = 40;
+    name.value = link.label;
+    name.placeholder = "e.g. Timesheets";
+    nameField.append(name);
+    const urlField = makeElement("label", "field");
+    urlField.append(makeElement("span", "", "Link URL"));
+    const url = document.createElement("input");
+    url.className = "link-url";
+    url.type = "url";
+    url.maxLength = 500;
+    url.value = link.url;
+    url.placeholder = "https://…";
+    urlField.append(url);
+    row.append(number, nameField, urlField);
+    editor.append(row);
+  });
 }
 
 async function adminLogin(event) {
@@ -895,10 +1119,13 @@ async function saveConfig(event) {
   event.preventDefault();
   if (state.busy) return;
   const changes = {
-    mom: normalizeName($("momInput").value),
-    weekLabel: $("weekLabelInput").value.trim().replace(/\s+/gu, " "),
-    announcement: $("announcementInput").value.trim(),
-    secondaryAnnouncement: $("secondaryAnnouncementInput").value.trim(),
+    version: 2,
+    groupName: normalizeName($("groupNameInput").value),
+    mom: $("momInput").value.trim(),
+    links: [...$("adminLinks").querySelectorAll(".admin-link-row")].map((row) => ({
+      label: row.querySelector(".link-label").value,
+      url: row.querySelector(".link-url").value,
+    })),
   };
   try {
     assertConfigRecord(changes);
@@ -908,13 +1135,13 @@ async function saveConfig(event) {
   }
   const button = $("configForm").querySelector("button[type='submit']");
   const original = structuredClone(state.adminConfigBase ?? state.config);
-  const changedFields = Object.keys(changes).filter((field) => changes[field] !== original[field]);
+  const changedFields = Object.keys(changes).filter((field) => JSON.stringify(changes[field]) !== JSON.stringify(original[field]));
   if (!changedFields.length) {
     $("configFormMessage").textContent = "There are no changes to save.";
     return;
   }
   state.busy = true;
-  setButtonBusy(button, true, "Saving…", "Save weekly info");
+  setButtonBusy(button, true, "Saving…", "Save homepage");
   let base = structuredClone(state.config);
   let meta = state.configMeta;
   try {
@@ -933,7 +1160,8 @@ async function saveConfig(event) {
         renderAll();
         $("configFormMessage").textContent = "Saved and confirmed in GitHub.";
         $("configFormMessage").classList.add("success");
-        showToast("Weekly information updated.");
+        renderAdminLinks();
+        showToast("Homepage updated.");
         return;
       } catch (error) {
         if (error instanceof ApiError && error.status === 409 && error.details?.latest?.document) {
@@ -945,13 +1173,13 @@ async function saveConfig(event) {
         throw error;
       }
     }
-    throw new UserMessageError("The weekly information changed elsewhere. Reopen Admin and try again.");
+    throw new UserMessageError("The homepage changed elsewhere. Reopen Admin and try again.");
   } catch (error) {
     $("configFormMessage").classList.remove("success");
-    $("configFormMessage").textContent = error.message || "The weekly information could not be saved.";
+    $("configFormMessage").textContent = error.message || "The homepage could not be saved.";
   } finally {
     state.busy = false;
-    setButtonBusy(button, false, "Saving…", "Save weekly info");
+    setButtonBusy(button, false, "Saving…", "Save homepage");
   }
 }
 
@@ -1036,6 +1264,13 @@ function bindEvents() {
   $("createTab").addEventListener("click", () => switchAuthView("create"));
   $("loginForm").addEventListener("submit", loginAccount);
   $("createForm").addEventListener("submit", createAccount);
+  $("brandHomeButton").addEventListener("click", () => setView("home"));
+  $("navHome").addEventListener("click", () => setView("home"));
+  $("navHolidays").addEventListener("click", () => setView("holidays"));
+  $("navWork").addEventListener("click", () => setView("work"));
+  $("homeHolidaysButton").addEventListener("click", () => setView("holidays"));
+  $("homeWorkButton").addEventListener("click", () => setView("work"));
+  $("editHomeButton").addEventListener("click", openAdmin);
   $("lockButton").addEventListener("click", lockPlanner);
   $("addHolidayButton").addEventListener("click", openAddHoliday);
   $("emptyAddButton").addEventListener("click", openAddHoliday);
@@ -1061,6 +1296,9 @@ function bindEvents() {
   for (const button of document.querySelectorAll("[data-close-dialog]")) {
     button.addEventListener("click", () => closeDialog($(button.dataset.closeDialog)));
   }
+  const restoreViewFromUrl = () => { if (state.unlocked) setView(location.hash.replace(/^#/u, "") || "home", { updateHash: false }); };
+  window.addEventListener("popstate", restoreViewFromUrl);
+  window.addEventListener("hashchange", restoreViewFromUrl);
 }
 
 bindEvents();

@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   addHoliday,
+  assertConfigRecord,
+  assertPresenceRecord,
   canonicalName,
   dateRange,
   findPersonByName,
+  holidayForAccountDay,
   isWeekendIso,
   monthCells,
   mergeConfigChanges,
@@ -14,6 +17,7 @@ import {
   peopleAwayOn,
   rangesOverlap,
   rangesOverlapOnWorkingDay,
+  twoWorkWeeks,
   validateHolidayInput,
 } from "../assets/model.js";
 
@@ -91,10 +95,32 @@ test("calendar starts on Monday and always renders six complete weeks", () => {
   assert.equal(cells[0].iso, "2026-07-27");
 });
 
-test("weekly config conflicts merge different fields but reject the same field", () => {
-  const original = { mom: "A", weekLabel: "Week 1", announcement: "Old", secondaryAnnouncement: "" };
+test("homepage config validates links and merges different fields safely", () => {
+  const links = Array.from({ length: 6 }, () => ({ label: "", url: "" }));
+  const original = { version: 2, groupName: "Dream Team", mom: "A", links };
   const latest = { ...original, mom: "B" };
-  const desired = { ...original, announcement: "New" };
-  assert.deepEqual(mergeConfigChanges(original, latest, desired), { ...latest, announcement: "New" });
+  const desired = { ...original, groupName: "Great Team" };
+  assert.deepEqual(mergeConfigChanges(original, latest, desired), { ...latest, groupName: "Great Team" });
   assert.throws(() => mergeConfigChanges(original, latest, { ...original, mom: "C" }), /changed elsewhere/u);
+  assert.equal(assertConfigRecord({ mom: "Legacy MOM", weekLabel: "", announcement: "", secondaryAnnouncement: "" }).groupName, "Dream Team");
+  assert.throws(() => assertConfigRecord({ ...original, links: [{ label: "Bad", url: "javascript:alert(1)" }, ...links.slice(1)] }), /https:\/\/ or http:\/\//u);
+});
+
+test("work-location records default to home and produce current and next weekdays", () => {
+  const accountId = "33333333-3333-4333-8333-333333333333";
+  const presence = assertPresenceRecord({ version: 1, members: [{ accountId, displayName: "John Smith", officeDays: ["2026-08-13"] }] });
+  assert.deepEqual(presence.members[0].officeDays, ["2026-08-13"]);
+  assert.equal(presence.members[0].officeDays.includes("2026-08-12"), false);
+  const weeks = twoWorkWeeks(new Date(2026, 7, 12, 12));
+  assert.deepEqual(weeks.map((week) => week.days), [
+    ["2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14"],
+    ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21"],
+  ]);
+  assert.throws(() => assertPresenceRecord({ version: 1, members: [{ accountId, displayName: "John Smith", officeDays: ["2026-08-15"] }] }), /office day/u);
+});
+
+test("a matching holiday overrides an account work day", () => {
+  const people = [{ id: "person-1", name: "John Smith", holidays: [{ id: "holiday-1", start: "2026-08-12", end: "2026-08-14" }] }];
+  assert.equal(holidayForAccountDay(people, " john  smith ", "2026-08-13")?.id, "holiday-1");
+  assert.equal(holidayForAccountDay(people, "John Smith", "2026-08-17"), null);
 });

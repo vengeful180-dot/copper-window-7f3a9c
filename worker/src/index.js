@@ -168,6 +168,18 @@ export function createWorker(fetchImpl = fetch) {
           return json(request, env, { file: await store().get("data/config.enc.json") });
         }
 
+        if (request.method === "GET" && url.pathname === "/api/presence") {
+          await requireAccount(request, env, { countWrite: false });
+          return json(request, env, { file: await store().get("data/presence.enc.json") });
+        }
+
+        if (request.method === "PUT" && url.pathname === "/api/presence") {
+          await requireAccount(request, env);
+          const body = validateEncryptedWriteBody(await readJsonBody(request));
+          const file = await store().updateEncrypted("data/presence.enc.json", body.document, body.expectedDigest, "Update encrypted work locations");
+          return json(request, env, { ok: true, file });
+        }
+
         if (request.method === "POST" && url.pathname === "/api/person") {
           await requireAccount(request, env);
           const body = validateCreatePersonBody(await readJsonBody(request));
@@ -192,7 +204,7 @@ export function createWorker(fetchImpl = fetch) {
         if (request.method === "PUT" && url.pathname === "/api/admin/config") {
           await requireAdmin(request, env);
           const body = validateEncryptedWriteBody(await readJsonBody(request));
-          const file = await store().updateEncrypted("data/config.enc.json", body.document, body.expectedDigest, "Update encrypted weekly information");
+          const file = await store().updateEncrypted("data/config.enc.json", body.document, body.expectedDigest, "Update encrypted homepage settings");
           return json(request, env, { ok: true, file });
         }
 

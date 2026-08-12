@@ -38,6 +38,10 @@ if (Object.keys(config).sort().join(",") !== "cipher,kdf,version") failures.push
 const configText = JSON.stringify(config);
 if (/"mom"|"announcement"|"weekLabel"|\d{4}-\d{2}-\d{2}/u.test(configText)) failures.push("data/config.enc.json: protected plaintext detected");
 
+const presence = JSON.parse(await readFile(path.join(root, "data", "presence.enc.json"), "utf8"));
+if (Object.keys(presence).sort().join(",") !== "cipher,kdf,version") failures.push("data/presence.enc.json: not an encrypted envelope");
+if (/"(?:displayName|officeDays|members)"\s*:|\d{4}-\d{2}-\d{2}/u.test(JSON.stringify(presence))) failures.push("data/presence.enc.json: protected plaintext detected");
+
 for (const file of files.filter((candidate) => candidate.includes(`${path.sep}data${path.sep}people${path.sep}`) && candidate.endsWith(".json"))) {
   const parsed = JSON.parse(await readFile(file, "utf8"));
   if (Object.keys(parsed).sort().join(",") !== "cipher,kdf,version") failures.push(`${path.relative(root, file)}: not an encrypted envelope`);
