@@ -50,7 +50,7 @@ test("personal accounts use an eight-character minimum and cache-busted portal a
   assert.match(html, /Use at least 8 characters/u);
   assert.match(html, /assets\/app\.js\?v=/u);
   assert.match(html, /assets\/styles\.css\?v=/u);
-  assert.match(html, /assets\/design-v3\.css\?v=20260813-today-header-v6/u);
+  assert.match(html, /assets\/design-v3\.css\?v=20260813-full-cell-hover-v7/u);
   assert.match(app, /MIN_ACCOUNT_PASSWORD_LENGTH\s*=\s*8/u);
   assert.match(app, /Your password was accepted, but this page was out of date/u);
 });
@@ -282,6 +282,10 @@ test("work-location controls fill the entire day cell and carry their status tin
   assert.match(design, /\.work-status\.is-home\s*\{[^}]*color:\s*#78caff[^}]*rgba\(48, 143, 211, \.28\)/u);
   assert.match(design, /\.work-status\.is-office\s*\{[^}]*color:\s*#ffd166[^}]*rgba\(226, 169, 49, \.3\)/u);
   assert.match(design, /\.work-status\.is-holiday\s*\{[^}]*color:\s*#ff747d[^}]*rgba\(211, 62, 75, \.3\)/u);
+  assert.match(design, /button\.work-status\s*\{[^}]*cursor:\s*pointer[^}]*transition:[^}]*transform/u);
+  assert.match(design, /button\.work-status\.is-home:hover\s*\{[^}]*rgba\(57, 165, 235, \.5\)[^}]*inset 0 0 0 2px rgba\(145, 218, 255, \.82\)/u);
+  assert.match(design, /button\.work-status\.is-office:hover\s*\{[^}]*rgba\(239, 187, 72, \.5\)[^}]*inset 0 0 0 2px rgba\(255, 218, 126, \.84\)/u);
+  assert.doesNotMatch(design, /(?:button\.)?work-status\.is-holiday:hover/u);
   assert.match(design, /\.work-day-cell:has\(> \.work-status\)\s*\{[^}]*background:\s*transparent/u);
   assert.doesNotMatch(design, /\.work-day-cell\.is-today\s*>\s*\.work-status\s*\{[^}]*background-image:\s*none/u);
   assert.match(design, /\.work-day-cell\.is-today\s*>\s*\.work-status\.is-home\s*\{[^}]*rgba\(48, 143, 211, \.28\)/u);

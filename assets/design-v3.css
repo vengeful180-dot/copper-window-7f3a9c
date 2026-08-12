@@ -1057,7 +1057,50 @@ button.work-status.is-office {
 }
 
 .work-day-cell:has(> .work-status) { padding: 0; background: transparent; }
-button.work-status:hover { filter: none; box-shadow: inset 0 0 0 2px currentColor; }
+
+button.work-status {
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background 170ms ease,
+    box-shadow 170ms ease,
+    filter 170ms ease,
+    transform 170ms cubic-bezier(.2, .8, .2, 1);
+}
+
+@media (hover: hover) {
+  button.work-status:hover {
+    z-index: 6;
+    filter: saturate(1.14) brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  button.work-status.is-home:hover {
+    color: #a8e2ff;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(151, 222, 255, .18), transparent 54%),
+      linear-gradient(135deg, rgba(57, 165, 235, .5), rgba(19, 80, 130, .38));
+    box-shadow:
+      inset 0 0 0 2px rgba(145, 218, 255, .82),
+      inset 0 1px 0 rgba(255, 255, 255, .16),
+      inset 0 0 24px rgba(75, 183, 243, .14),
+      0 7px 18px rgba(2, 17, 29, .34);
+  }
+
+  button.work-status.is-office:hover {
+    color: #ffe299;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(255, 226, 149, .18), transparent 54%),
+      linear-gradient(135deg, rgba(239, 187, 72, .5), rgba(153, 98, 21, .38));
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 218, 126, .84),
+      inset 0 1px 0 rgba(255, 255, 255, .16),
+      inset 0 0 24px rgba(255, 196, 77, .14),
+      0 7px 18px rgba(2, 17, 29, .34);
+  }
+}
 
 /* Dialogs and editor surfaces */
 .modal {
