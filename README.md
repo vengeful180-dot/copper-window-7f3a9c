@@ -1,0 +1,168 @@
+# Team Time Away
+
+A small-team holiday planner whose public GitHub repository contains only an anonymous index and AES-256-GCM ciphertext. The frontend is a static GitHub Pages site. A narrow Cloudflare Worker authenticates writes and commits only permitted encrypted data files back to GitHub.
+
+The repository starts with **zero people**. The first holiday entered for a normalized name creates a UUID person record automatically; later capitalization or whitespace variations reuse that record.
+
+## Architecture
+
+```text
+Browser on GitHub Pages
+  ├─ derives an AES-256 key + write credential with PBKDF2-SHA-256
+  ├─ downloads data/index.json (UUIDs only)
+  ├─ downloads and decrypts data/config.enc.json + data/people/*.enc.json
+  └─ sends fresh ciphertext to the Worker for writes
+
+Cloudflare Worker
+  ├─ enforces exact-origin CORS, request limits, and authentication
+  ├─ validates encrypted envelopes without decrypting them
+  ├─ retries anonymous-index SHA conflicts with a UUID-set merge
+  └─ commits only data/index.json, data/config.enc.json, and UUID person files
+
+GitHub
+  ├─ stores source and encrypted data
+  ├─ keeps history as the backup log
+  └─ deploys the static site through GitHub Actions / Pages
+```
+
+There is no SQL service, account directory, or traditional database. The Worker never needs employee names, dates, MOM, or announcements in plaintext.
+
+## Protected file format
+
+`data/index.json` contains one key, `people`, whose values are random UUIDs. Each `data/people/<uuid>.enc.json` file and `data/config.enc.json` is an envelope containing:
+
+- PBKDF2-SHA-256 metadata with a public 16-byte random salt and 310,000 iterations;
+- AES-256-GCM ciphertext;
+- a fresh random 96-bit GCM nonce for every save;
+- an authenticated context string identifying this application and format version.
+
+The shared site password is never stored. PBKDF2 derives 512 bits: one 256-bit half becomes the AES key and the other becomes a high-entropy write credential. The Worker stores only a SHA-256 verifier for that credential. The separate Admin password is checked by the Worker against a salted PBKDF2 verifier, then exchanged for a signed 15-minute in-memory Admin session token.
+
+Decrypted data and derived keys remain in JavaScript memory only. Locking or closing the tab discards them. The app does not use localStorage or sessionStorage.
+
+## Local development
+
+Requirements: Node.js 22 or later.
+
+```powershell
+npm ci
+npm run dev
+```
+
+The site opens at `http://127.0.0.1:5173`. In a second terminal, run the Worker at `http://127.0.0.1:8787`:
+
+```powershell
+npm run dev:worker
+```
+
+The generated, git-ignored `.dev.vars` already contains the password verifiers. Replace its GitHub placeholders with a fine-grained development token, owner, and repository before exercising real writes. Use the initial credentials stored in the git-ignored `.initial-credentials.txt`.
+
+Run the complete local gate with:
+
+```powershell
+npm run check
+```
+
+## First deployment
+
+1. Create a public repository with a non-obvious name and push `main`. A public repository is normally needed for no-cost GitHub Pages; encryption, not obscurity, protects the data.
+2. In repository **Settings → Pages**, choose **GitHub Actions** as the source. The `Deploy GitHub Pages` workflow builds and deploys `dist/`.
+3. Create a fine-grained GitHub token restricted to this one repository with only **Contents: Read and write** and **Metadata: Read**. Store it as the repository secret `GITHUB_DATA_TOKEN`; never place it in a file or frontend variable.
+4. Create a Cloudflare API token limited to the target account with **Workers Scripts: Edit**. Store `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub repository secrets.
+5. Copy the generated verifier values from `.dev.vars` into GitHub secrets: `SITE_AUTH_TOKEN_HASH`, `ADMIN_PASSWORD_HASH`, `ADMIN_PASSWORD_SALT`, and `ADMIN_SESSION_SECRET`.
+6. Add repository variable `PAGES_ORIGIN` as the origin only, such as `https://owner.github.io` (no repository path). Run **Deploy secure write gateway** once.
+7. Add repository variable `WORKER_API_URL` using the resulting `https://…workers.dev` URL, then rerun **Deploy GitHub Pages**. The frontend build automatically points protected reads at the raw `main/data/` path for the current repository.
+
+The Worker workflow uploads secrets after the initial script deployment; until that finishes, write routes fail closed. The frontend displays a clear read-only message when `WORKER_API_URL` is unset or unavailable.
+
+For a custom Worker domain, also add that exact origin to the `connect-src` policy in `index.html`.
+
+## Required Worker configuration
+
+| Name | Purpose | Secret |
+| --- | --- | --- |
+| `SITE_AUTH_TOKEN_HASH` | Verifies ordinary encrypted writes | Yes |
+| `ADMIN_PASSWORD_HASH` | Verifies the Admin password | Yes |
+| `ADMIN_PASSWORD_SALT` | Salt for the Admin verifier | Yes |
+| `ADMIN_SESSION_SECRET` | Signs short-lived Admin sessions | Yes |
+| `GITHUB_DATA_TOKEN` | Commits permitted files | Yes |
+| `GITHUB_OWNER` | Repository owner | Treat as runtime configuration |
+| `GITHUB_REPO` | Repository name | Treat as runtime configuration |
+| `GITHUB_BRANCH` | Data branch; defaults to `main` | No |
+| `ALLOWED_ORIGIN` | Exact GitHub Pages origin | No |
+| `DEV_ORIGIN` | Optional local origin | No |
+
+Do not grant the data token access to other repositories, workflows, issues, pull requests, administration, or secrets.
+
+## Password changes
+
+### Shared site password
+
+Use a short maintenance window because the ciphertext and Worker verifier must move together. Start from a clean, current checkout and set the old and new passwords only in the current process environment:
+
+```powershell
+$env:OLD_SITE_PASSWORD='old value'
+$env:NEW_SITE_PASSWORD='new value of at least 20 characters'
+npm run data:rotate-password
+Remove-Item Env:OLD_SITE_PASSWORD, Env:NEW_SITE_PASSWORD
+```
+
+This decrypts locally, creates a new random KDF salt, and re-encrypts every protected file with fresh nonces. It writes the new `SITE_AUTH_TOKEN_HASH` to the git-ignored `.rotation-secrets.txt`. Update the Worker secret, commit only the encrypted data files, and deploy Pages. Never commit either password or the rotation file.
+
+### Admin password
+
+```powershell
+$env:NEW_ADMIN_PASSWORD='new value of at least 20 characters'
+npm run secrets:admin-password
+Remove-Item Env:NEW_ADMIN_PASSWORD
+```
+
+Update the Worker `ADMIN_PASSWORD_HASH` and `ADMIN_PASSWORD_SALT` from the git-ignored `.rotation-secrets.txt`. Changing the Admin password does not re-encrypt holiday data.
+
+## Backup and restore
+
+Git history is the primary audit and backup trail. Periodically clone or mirror the repository somewhere access-controlled. To restore a mistaken edit, restore the affected encrypted file and, if needed, `data/index.json` from a known-good commit, then push a normal corrective commit. A restored file still requires the site password used when that snapshot was encrypted.
+
+Never restore `data/index.json` without checking that its UUIDs match the intended person files. Missing index entries make encrypted records undiscoverable; references to missing files produce a load error rather than exposing or fabricating data.
+
+## Recovering a damaged anonymous index
+
+From a clean checkout containing the intended encrypted person files:
+
+```powershell
+npm run data:rebuild-index
+npm run test:security
+```
+
+The recovery script scans only UUID-shaped `*.enc.json` filenames and recreates `{ "people": [...] }`; it never decrypts or extracts a name. Review the resulting diff and commit it. Orphaned encrypted files are reintroduced; remove any known-unwanted ciphertext file before rebuilding.
+
+## Conflict behavior
+
+Every encrypted update includes a digest of the version the browser decrypted. The Worker fetches the current GitHub blob and SHA, rejects stale versions with HTTP 409, and returns the latest ciphertext. The browser decrypts that version locally, replays a safe holiday addition, and retries with fresh ciphertext. An edit or delete aborts when the same holiday changed concurrently, avoiding silent overwrites. Anonymous UUID additions are merged server-side and retried against the newest index SHA.
+
+## Security notes
+
+- The Pages URL is intentionally unlisted with `noindex,nofollow,noarchive` and a deny-all `robots.txt`; this does **not** make the URL private.
+- The HTML shell contains no protected values. Wrong passwords reveal only a generic error.
+- The Worker requires HTTPS in production, exact-origin CORS, bounded JSON bodies, strict UUID paths, known encrypted-envelope fields, and short-lived Admin sessions.
+- Admin password attempts are limited to five per 15-minute window per observed IP in each Worker isolate. Cloudflare account-level rate limiting/WAF can add a globally coordinated layer without changing application data storage.
+- The application creates DOM nodes with `textContent`; it does not inject user-controlled HTML.
+- The included security check scans for credential patterns, unsafe DOM insertion, persistent browser storage, plaintext protected data, and unexpected encrypted-file shapes.
+
+## Data layout
+
+```text
+index.html
+assets/
+data/
+  index.json
+  config.enc.json
+  people/
+    <uuid>.enc.json
+worker/
+  src/
+  wrangler.toml
+.github/workflows/
+  pages.yml
+  worker.yml
+```

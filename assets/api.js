@@ -1,0 +1,56 @@
+import { RUNTIME_CONFIG } from "./runtime-config.js";
+
+export class ApiError extends Error {
+  constructor(message, status = 0, details = null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.details = details;
+  }
+}
+
+export function apiConfigured() {
+  return Boolean(RUNTIME_CONFIG.apiBaseUrl);
+}
+
+async function request(path, { method = "GET", body, siteToken, adminToken } = {}) {
+  if (!apiConfigured()) throw new ApiError("Secure writes are not connected yet.", 503);
+  const headers = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (siteToken) headers.Authorization = `Bearer ${siteToken}`;
+  if (adminToken) headers.Authorization = `Admin ${adminToken}`;
+  let response;
+  try {
+    response = await fetch(`${RUNTIME_CONFIG.apiBaseUrl}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: "no-store",
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+    });
+  } catch {
+    throw new ApiError("The secure write service could not be reached.", 0);
+  }
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(payload.error || "The request could not be completed.", response.status, payload);
+  return payload;
+}
+
+export const api = {
+  health: () => request("/health"),
+  createPerson: (body, siteToken) => request("/api/person", { method: "POST", body, siteToken }),
+  updatePerson: (id, body, siteToken) => request(`/api/person/${encodeURIComponent(id)}`, { method: "PUT", body, siteToken }),
+  adminSession: (password) => request("/api/admin/session", { method: "POST", body: { password } }),
+  updateConfig: (body, adminToken) => request("/api/admin/config", { method: "PUT", body, adminToken }),
+  adminUpdatePerson: (id, body, adminToken) => request(`/api/admin/person/${encodeURIComponent(id)}`, { method: "PUT", body, adminToken }),
+  adminDeletePerson: (id, adminToken) => request(`/api/admin/person/${encodeURIComponent(id)}`, { method: "DELETE", adminToken }),
+};
+
+export async function fetchDataJson(path) {
+  const url = new URL(path.replace(/^\//u, ""), RUNTIME_CONFIG.dataBaseUrl);
+  url.searchParams.set("v", `${Date.now()}-${crypto.randomUUID()}`);
+  const response = await fetch(url, { cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer" });
+  if (!response.ok) throw new ApiError(response.status === 404 ? "Protected data is not ready yet." : "Protected data could not be loaded.", response.status);
+  return response.json();
+}

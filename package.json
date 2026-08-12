@@ -1,0 +1,25 @@
+{
+  "name": "quiet-leave-planner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "dev:worker": "wrangler dev worker/src/index.js --config worker/wrangler.toml --port 8787",
+    "build": "node scripts/build.mjs",
+    "test": "node --test --test-reporter=spec tests/*.test.mjs",
+    "test:security": "node scripts/security-check.mjs",
+    "check": "npm test && npm run test:security && npm run build",
+    "secrets:bootstrap": "node scripts/bootstrap-secrets.mjs",
+    "secrets:admin-password": "node scripts/hash-admin-password.mjs",
+    "data:rebuild-index": "node scripts/rebuild-index.mjs",
+    "data:rotate-password": "node scripts/rotate-site-password.mjs"
+  },
+  "devDependencies": {
+    "vite": "8.2.1",
+    "wrangler": "4.121.0"
+  }
+}

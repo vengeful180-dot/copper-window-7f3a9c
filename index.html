@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:8787 http://localhost:8787 https://raw.githubusercontent.com https://*.workers.dev; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
+    <meta name="theme-color" content="#f4f1eb">
+    <title>Team Time Away</title>
+    <link rel="stylesheet" href="assets/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">Skip to calendar</a>
+
+    <main id="unlockView" class="unlock-view">
+      <section class="unlock-card" aria-labelledby="unlockTitle">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p class="eyebrow">Team time away</p>
+        <h1 id="unlockTitle">A calmer way to plan time off.</h1>
+        <p class="unlock-copy">Enter the shared team password to open the holiday calendar.</p>
+        <form id="unlockForm" class="unlock-form" novalidate>
+          <label for="sitePassword">Team password</label>
+          <div class="password-row">
+            <input id="sitePassword" name="password" type="password" autocomplete="current-password" required maxlength="256" autofocus>
+            <button class="button button-primary" type="submit">Unlock</button>
+          </div>
+          <p id="unlockError" class="form-message" role="alert"></p>
+        </form>
+        <div class="privacy-note"><span aria-hidden="true">&#9679;</span> Protected information is decrypted only in this tab.</div>
+      </section>
+      <p class="unlock-footer">Private team planner &middot; Unlisted, not publicly indexed</p>
+    </main>
+
+    <div id="appView" class="app-shell" hidden>
+      <header class="app-header">
+        <div class="brand-inline">
+          <div class="brand-mark brand-mark-small" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div><p class="eyebrow">Team time away</p><p class="header-date" id="headerDate"></p></div>
+        </div>
+        <div class="header-actions">
+          <button id="adminButton" class="button button-quiet" type="button">Admin</button>
+          <button id="lockButton" class="button button-quiet" type="button">Lock</button>
+          <button id="addHolidayButton" class="button button-primary" type="button"><span aria-hidden="true">+</span> Add holiday</button>
+        </div>
+      </header>
+
+      <div id="backendBanner" class="status-banner" role="status" hidden></div>
+
+      <section class="weekly-strip" aria-label="Weekly information">
+        <article><p class="strip-label">MOM</p><p id="momValue" class="strip-value empty-copy"></p></article>
+        <article><p class="strip-label">This week</p><p id="weekLabelValue" class="strip-value empty-copy"></p></article>
+        <article class="announcement-card"><p class="strip-label">Announcement</p><p id="announcementValue" class="strip-value empty-copy"></p><p id="secondaryAnnouncementValue" class="strip-secondary"></p></article>
+      </section>
+
+      <div id="mainContent" class="workspace">
+        <aside class="sidebar" aria-label="Team summary">
+          <section class="summary-card spotlight-card">
+            <div class="card-heading"><div><p class="eyebrow">Right now</p><h2>Who&rsquo;s away today</h2></div><span id="awayTodayCount" class="count-badge">0</span></div>
+            <div id="awayTodayList" class="person-list"></div>
+          </section>
+          <section class="summary-card">
+            <div class="card-heading"><div><p class="eyebrow">Next seven days</p><h2>Who&rsquo;s away this week</h2></div><span id="awayWeekCount" class="count-badge">0</span></div>
+            <div id="awayWeekList" class="person-list"></div>
+          </section>
+          <section class="summary-card team-card">
+            <div class="card-heading"><div><p class="eyebrow">People</p><h2>Team summary</h2></div><span id="peopleCount" class="count-badge">0</span></div>
+            <div id="peopleList" class="team-list"></div>
+          </section>
+        </aside>
+
+        <section class="calendar-card" aria-labelledby="monthTitle">
+          <div class="calendar-toolbar">
+            <div><p class="eyebrow">Holiday calendar</p><h1 id="monthTitle"></h1></div>
+            <div class="month-controls" aria-label="Calendar navigation">
+              <button id="previousMonth" class="icon-button" type="button" aria-label="Previous month">&larr;</button>
+              <button id="todayButton" class="button button-secondary" type="button">Today</button>
+              <button id="nextMonth" class="icon-button" type="button" aria-label="Next month">&rarr;</button>
+            </div>
+          </div>
+          <div id="calendarLoading" class="calendar-loading" role="status">Opening the protected calendar&hellip;</div>
+          <div id="calendarEmpty" class="calendar-empty" hidden>
+            <div class="empty-orbit" aria-hidden="true"><span></span></div>
+            <h2>No holidays added yet</h2>
+            <p>The first holiday automatically creates the first person.</p>
+            <button id="emptyAddButton" class="button button-primary" type="button">Add the first holiday</button>
+          </div>
+          <div id="calendarDesktop" class="calendar-desktop" hidden>
+            <div class="weekday-row" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+            <div id="calendarGrid" class="calendar-grid" role="grid" aria-labelledby="monthTitle"></div>
+          </div>
+          <div id="mobileAgenda" class="mobile-agenda" hidden></div>
+        </section>
+      </div>
+    </div>
+
+    <dialog id="holidayDialog" class="modal">
+      <form id="holidayForm" class="modal-card" method="dialog" novalidate>
+        <div class="modal-heading"><div><p id="holidayModalEyebrow" class="eyebrow">New time away</p><h2 id="holidayModalTitle">Add holiday</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="holidayDialog" aria-label="Close">&times;</button></div>
+        <input id="editPersonId" type="hidden"><input id="editHolidayId" type="hidden">
+        <div class="field"><label for="employeeName">Employee name</label><input id="employeeName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter a full name"><p class="field-hint">New names are added to the team automatically.</p></div>
+        <div class="date-fields">
+          <div class="field"><label for="holidayStart">From</label><input id="holidayStart" name="start" type="date" required></div>
+          <div class="field"><label for="holidayEnd">To</label><input id="holidayEnd" name="end" type="date" required></div>
+        </div>
+        <p id="holidayFormMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><button id="deleteHolidayButton" class="button button-danger" type="button" hidden>Delete holiday</button><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="holidayDialog">Cancel</button><button id="saveHolidayButton" class="button button-primary" type="submit">Save holiday</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="adminDialog" class="modal modal-wide">
+      <section class="modal-card">
+        <div class="modal-heading"><div><p class="eyebrow">Restricted controls</p><h2>Admin</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="adminDialog" aria-label="Close">&times;</button></div>
+        <form id="adminLoginForm" novalidate>
+          <p class="modal-intro">Enter the separate Admin password to update weekly information or manage people.</p>
+          <div class="field"><label for="adminPassword">Admin password</label><input id="adminPassword" type="password" autocomplete="current-password" maxlength="256" required></div>
+          <p id="adminLoginMessage" class="form-message" role="alert"></p>
+          <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="adminDialog">Cancel</button><button class="button button-primary" type="submit">Continue</button></div>
+        </form>
+        <div id="adminPanel" hidden>
+          <form id="configForm" novalidate>
+            <div class="admin-section-heading"><div><p class="eyebrow">Homepage</p><h3>Weekly information</h3></div></div>
+            <div class="admin-grid"><div class="field"><label for="momInput">MOM</label><input id="momInput" maxlength="80"></div><div class="field"><label for="weekLabelInput">Week label</label><input id="weekLabelInput" maxlength="80"></div><div class="field admin-full"><label for="announcementInput">Announcement</label><textarea id="announcementInput" maxlength="500" rows="3"></textarea></div><div class="field admin-full"><label for="secondaryAnnouncementInput">Secondary announcement <span class="optional">optional</span></label><textarea id="secondaryAnnouncementInput" maxlength="500" rows="2"></textarea></div></div>
+            <p id="configFormMessage" class="form-message" role="alert"></p>
+            <div class="modal-actions"><span class="action-spacer"></span><button class="button button-primary" type="submit">Save weekly info</button></div>
+          </form>
+          <div class="admin-divider"></div>
+          <section aria-labelledby="managePeopleTitle"><div class="admin-section-heading"><div><p class="eyebrow">Directory</p><h3 id="managePeopleTitle">Manage people</h3></div></div><div id="adminPeopleList" class="admin-people-list"></div></section>
+        </div>
+      </section>
+    </dialog>
+
+    <dialog id="confirmDialog" class="modal modal-confirm">
+      <section class="modal-card"><div class="confirm-icon" aria-hidden="true">!</div><h2 id="confirmTitle">Are you sure?</h2><p id="confirmMessage"></p><div class="modal-actions"><span class="action-spacer"></span><button id="confirmCancel" class="button button-secondary" type="button">Cancel</button><button id="confirmAccept" class="button button-danger" type="button">Delete</button></div></section>
+    </dialog>
+
+    <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>
