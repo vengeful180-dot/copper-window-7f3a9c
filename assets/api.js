@@ -52,6 +52,7 @@ export const api = {
   createPerson: (body, sessionToken) => request("/api/person", { method: "POST", body, sessionToken }),
   updatePerson: (id, body, sessionToken) => request(`/api/person/${encodeURIComponent(id)}`, { method: "PUT", body, sessionToken }),
   adminSession: (password) => request("/api/admin/session", { method: "POST", body: { password } }),
+  adminCreatePerson: (body, adminToken) => request("/api/admin/person", { method: "POST", body, adminToken }),
   updateConfig: (body, adminToken) => request("/api/admin/config", { method: "PUT", body, adminToken }),
   adminUpdatePerson: (id, body, adminToken) => request(`/api/admin/person/${encodeURIComponent(id)}`, { method: "PUT", body, adminToken }),
   adminDeletePerson: (id, adminToken) => request(`/api/admin/person/${encodeURIComponent(id)}`, { method: "DELETE", adminToken }),

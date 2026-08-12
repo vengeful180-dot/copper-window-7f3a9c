@@ -56,6 +56,15 @@ for (const file of files.filter((candidate) => candidate.includes(`${path.sep}da
   if (/"(?:displayName|password|team|holidays|announcement)"\s*:/iu.test(JSON.stringify(parsed))) failures.push(`${path.relative(root, file)}: account plaintext detected`);
 }
 
+for (const file of files.filter((candidate) => candidate.includes(`${path.sep}data${path.sep}owners${path.sep}`) && candidate.endsWith(".json"))) {
+  const parsed = JSON.parse(await readFile(file, "utf8"));
+  const filename = path.basename(file, ".json");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(filename)) failures.push(`${path.relative(root, file)}: ownership filename is not opaque`);
+  if (Object.keys(parsed).sort().join(",") !== "accountId,version" || parsed.version !== 1) failures.push(`${path.relative(root, file)}: unexpected ownership fields`);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(parsed.accountId ?? "")) failures.push(`${path.relative(root, file)}: invalid opaque account identifier`);
+  if (/name|password|holiday|display/iu.test(JSON.stringify(parsed))) failures.push(`${path.relative(root, file)}: protected plaintext detected`);
+}
+
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exitCode = 1;

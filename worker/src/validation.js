@@ -29,6 +29,12 @@ export function validatePersonId(id) {
   return id.toLowerCase();
 }
 
+export function validateOwnershipRecord(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record) || record.version !== 1) throw new InputError("The holiday ownership record is invalid.", 502);
+  if (Object.keys(record).sort().join(",") !== "accountId,version") throw new InputError("The holiday ownership record is invalid.", 502);
+  return { version: 1, accountId: validatePersonId(record.accountId) };
+}
+
 export function validateEncryptedDocument(document) {
   if (!document || typeof document !== "object" || Array.isArray(document) || document.version !== 1) throw new InputError("Invalid encrypted document.");
   const { kdf, cipher } = document;

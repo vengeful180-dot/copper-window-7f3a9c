@@ -73,7 +73,9 @@ async function requireSite(request, env, { countWrite = true } = {}) {
 
 async function requireAccount(request, env, { countWrite = true } = {}) {
   if (countWrite) requireRate(checkWriteRate(request));
-  if (!await authorizeAccount(request, env)) throw new InputError("Your login session is invalid or expired.", 401);
+  const account = await authorizeAccount(request, env);
+  if (!account) throw new InputError("Your login session is invalid or expired.", 401);
+  return account;
 }
 
 async function requireAdmin(request, env) {
@@ -181,9 +183,9 @@ export function createWorker(fetchImpl = fetch) {
         }
 
         if (request.method === "POST" && url.pathname === "/api/person") {
-          await requireAccount(request, env);
+          const account = await requireAccount(request, env);
           const body = validateCreatePersonBody(await readJsonBody(request));
-          const result = await store().createPerson(body.id, body.document);
+          const result = await store().createPerson(body.id, body.document, account.accountId);
           return json(request, env, { ok: true, ...result }, 201);
         }
 
@@ -194,10 +196,12 @@ export function createWorker(fetchImpl = fetch) {
           return json(request, env, { file: await store().get(`data/people/${id}.enc.json`) });
         }
         if (request.method === "PUT" && personMatch) {
-          await requireAccount(request, env);
+          const account = await requireAccount(request, env);
           const id = validatePersonId(personMatch[1]);
           const body = validateEncryptedWriteBody(await readJsonBody(request));
-          const file = await store().updateEncrypted(`data/people/${id}.enc.json`, body.document, body.expectedDigest, "Update encrypted holiday record");
+          const personStore = store();
+          await personStore.requirePersonOwner(id, account.accountId);
+          const file = await personStore.updateEncrypted(`data/people/${id}.enc.json`, body.document, body.expectedDigest, "Update encrypted holiday record");
           return json(request, env, { ok: true, file });
         }
 
@@ -206,6 +210,13 @@ export function createWorker(fetchImpl = fetch) {
           const body = validateEncryptedWriteBody(await readJsonBody(request));
           const file = await store().updateEncrypted("data/config.enc.json", body.document, body.expectedDigest, "Update encrypted homepage settings");
           return json(request, env, { ok: true, file });
+        }
+
+        if (request.method === "POST" && url.pathname === "/api/admin/person") {
+          await requireAdmin(request, env);
+          const body = validateCreatePersonBody(await readJsonBody(request));
+          const result = await store().createPerson(body.id, body.document);
+          return json(request, env, { ok: true, ...result }, 201);
         }
 
         const adminPersonMatch = url.pathname.match(/^\/api\/admin\/person\/([^/]+)$/u);

@@ -66,6 +66,7 @@ test("account sessions protect planner writes while the invite token cannot writ
   const payload = await correct.json();
   assert.equal(payload.person.digest, await digestDocument(document));
   assert.deepEqual(github.files.get("data/index.json").document, { people: [personId] });
+  assert.deepEqual(github.files.get(`data/owners/${personId}.json`).document, { version: 1, accountId: personId });
 });
 
 test("Worker-backed reads return fresh encrypted repository files", async () => {
@@ -137,7 +138,10 @@ test("stale client update receives 409 and the latest encrypted document", async
   const accountToken = await createAccountToken(env, personId);
   const latest = await encryptedDocument({ id: personId, name: "Latest", holidays: [] });
   const ours = await encryptedDocument({ id: personId, name: "Ours", holidays: [] });
-  const github = new MockGitHub({ [`data/people/${personId}.enc.json`]: latest });
+  const github = new MockGitHub({
+    [`data/people/${personId}.enc.json`]: latest,
+    [`data/owners/${personId}.json`]: { version: 1, accountId: personId },
+  });
   const worker = createWorker(github.fetch);
   const response = await worker.fetch(jsonRequest(`/api/person/${personId}`, {
     method: "PUT",
@@ -148,6 +152,76 @@ test("stale client update receives 409 and the latest encrypted document", async
   assert.equal(response.status, 409);
   const payload = await response.json();
   assert.deepEqual(payload.latest.document, latest);
+});
+
+test("personal sessions can update only their own holiday record while Admin can update any record", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const otherAccountId = "44444444-4444-4444-8444-444444444444";
+  const ownerToken = await createAccountToken(env, personId);
+  const otherToken = await createAccountToken(env, otherAccountId);
+  const before = await encryptedDocument({ id: personId, name: "Owner", holidays: [] });
+  const ownerUpdate = await encryptedDocument({ id: personId, name: "Owner", holidays: [{ id: personId, start: "2026-08-12", end: "2026-08-12" }] });
+  const adminUpdate = await encryptedDocument({ id: personId, name: "Admin edit", holidays: [] });
+  const github = new MockGitHub({
+    [`data/people/${personId}.enc.json`]: before,
+    [`data/owners/${personId}.json`]: { version: 1, accountId: personId },
+  });
+  const worker = createWorker(github.fetch);
+
+  const denied = await worker.fetch(jsonRequest(`/api/person/${personId}`, {
+    method: "PUT",
+    body: { document: ownerUpdate, expectedDigest: await digestDocument(before) },
+    authorization: `Session ${otherToken}`,
+    ip: "203.0.113.31",
+  }), env);
+  assert.equal(denied.status, 403);
+  assert.deepEqual(github.files.get(`data/people/${personId}.enc.json`).document, before);
+
+  const allowed = await worker.fetch(jsonRequest(`/api/person/${personId}`, {
+    method: "PUT",
+    body: { document: ownerUpdate, expectedDigest: await digestDocument(before) },
+    authorization: `Session ${ownerToken}`,
+    ip: "203.0.113.32",
+  }), env);
+  assert.equal(allowed.status, 200);
+
+  const login = await worker.fetch(jsonRequest("/api/admin/session", { body: { password: "admin-test-password" }, ip: "203.0.113.33" }), env);
+  const { token: adminToken } = await login.json();
+  const adminAllowed = await worker.fetch(jsonRequest(`/api/admin/person/${personId}`, {
+    method: "PUT",
+    body: { document: adminUpdate, expectedDigest: await digestDocument(ownerUpdate) },
+    authorization: `Admin ${adminToken}`,
+    ip: "203.0.113.33",
+  }), env);
+  assert.equal(adminAllowed.status, 200);
+  assert.deepEqual(github.files.get(`data/people/${personId}.enc.json`).document, adminUpdate);
+});
+
+test("Admin-created demo records are editable only in Admin mode and carry no personal owner", async () => {
+  resetRateLimitsForTests();
+  const env = await workerEnv();
+  const document = await encryptedDocument({ id: personId, name: "Demo person", holidays: [] });
+  const github = new MockGitHub({ "data/index.json": { people: [] } });
+  const worker = createWorker(github.fetch);
+  const login = await worker.fetch(jsonRequest("/api/admin/session", { body: { password: "admin-test-password" }, ip: "203.0.113.41" }), env);
+  const { token } = await login.json();
+  const created = await worker.fetch(jsonRequest("/api/admin/person", {
+    body: { id: personId, document },
+    authorization: `Admin ${token}`,
+    ip: "203.0.113.41",
+  }), env);
+  assert.equal(created.status, 201);
+  assert.equal(github.files.has(`data/owners/${personId}.json`), false);
+
+  const personalToken = await createAccountToken(env, personId);
+  const denied = await worker.fetch(jsonRequest(`/api/person/${personId}`, {
+    method: "PUT",
+    body: { document, expectedDigest: await digestDocument(document) },
+    authorization: `Session ${personalToken}`,
+    ip: "203.0.113.42",
+  }), env);
+  assert.equal(denied.status, 403);
 });
 
 test("account registration stores no name or reusable password verifier and supports personal login", async () => {

@@ -142,8 +142,9 @@ export async function authorizeAccount(request, env, now = Date.now()) {
   if (!timingSafeEqual(expected, base64UrlToBytes(signature))) return false;
   try {
     const parsed = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payload)));
-    return parsed.scope === "account" && typeof parsed.sub === "string" && typeof parsed.nonce === "string"
+    const valid = parsed.scope === "account" && typeof parsed.sub === "string" && typeof parsed.nonce === "string"
       && Number.isFinite(parsed.exp) && parsed.exp >= now && parsed.exp <= now + ACCOUNT_SESSION_MS + 60_000;
+    return valid ? { accountId: parsed.sub, expiresAt: parsed.exp } : false;
   } catch { return false; }
 }
 

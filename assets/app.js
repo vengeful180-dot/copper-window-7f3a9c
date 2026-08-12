@@ -1,4 +1,4 @@
-import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-header-fix";
+import { api, apiConfigured, ApiError, fetchDataJson } from "./api.js?v=20260812-owner-controls-v1";
 import {
   decryptJson,
   deriveSecrets,
@@ -23,8 +23,6 @@ import {
   nextWorkingDayIso,
   normalizeName,
   parseIsoDate,
-  peopleAwayBetween,
-  peopleAwayOn,
   personHue,
   rangesOverlapOnWorkingDay,
   startOfWeek,
@@ -475,6 +473,12 @@ function clearAdminSession({ prompt = false } = {}) {
   state.adminExpiresAt = 0;
   state.adminExpiryTimer = null;
   $("editHomeButton").hidden = true;
+  $("adminButton").textContent = "Admin";
+  $("adminButton").classList.remove("is-active");
+  if (state.unlocked && state.config) {
+    renderSummaries();
+    renderCalendar();
+  }
   if (prompt && $("adminDialog").open) {
     $("adminPanel").hidden = true;
     $("adminLoginForm").hidden = false;
@@ -488,6 +492,12 @@ function beginAdminSession(token, expiresIn) {
   state.adminToken = token;
   state.adminExpiresAt = Date.now() + lifetimeMs;
   $("editHomeButton").hidden = false;
+  $("adminButton").textContent = "Admin on";
+  $("adminButton").classList.add("is-active");
+  if (state.unlocked && state.config) {
+    renderSummaries();
+    renderCalendar();
+  }
   state.adminExpiryTimer = window.setTimeout(() => clearAdminSession({ prompt: true }), lifetimeMs);
 }
 
@@ -654,6 +664,12 @@ function renderWorkSchedule() {
     return;
   }
   const dayFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const members = [...state.presence.members].sort((first, second) => {
+    const firstIsCurrent = first.accountId === state.account?.id;
+    const secondIsCurrent = second.accountId === state.account?.id;
+    return firstIsCurrent === secondIsCurrent ? first.displayName.localeCompare(second.displayName) : firstIsCurrent ? -1 : 1;
+  });
+  const holidayRecordIds = new Set(state.people.map((person) => person.id));
   twoWorkWeeks().forEach((week, weekIndex) => {
     const card = makeElement("section", "work-week-card");
     const heading = makeElement("div", "work-week-heading");
@@ -671,12 +687,14 @@ function renderWorkSchedule() {
       header.append(cell);
     }
     table.append(header);
-    for (const member of state.presence.members) {
+    for (const member of members) {
       const row = makeElement("div", "work-row");
+      if (member.accountId === state.account?.id) row.classList.add("is-current-user");
       const name = makeElement("div", "work-person-cell");
       name.style.setProperty("--person-hue", personHue(member.accountId));
       name.append(makeElement("span", "person-dot"), makeElement("strong", "", member.displayName));
       if (member.accountId === state.account?.id) name.append(makeElement("small", "", "You"));
+      else if (holidayRecordIds.has(member.accountId)) name.append(makeElement("small", "", "Demo"));
       row.append(name);
       for (const iso of week.days) {
         const cell = makeElement("div", "work-day-cell");
@@ -717,7 +735,15 @@ function activeHoliday(person, start, end = start) {
   return person.holidays.find((holiday) => rangesOverlapOnWorkingDay(start, end, holiday.start, holiday.end)) ?? null;
 }
 
-function renderPersonSummary(list, people, emptyMessage) {
+function holidayStartingBetween(person, start, end) {
+  return person.holidays.find((holiday) => holiday.start >= start && holiday.start <= end) ?? null;
+}
+
+function peopleStartingBetween(people, start, end) {
+  return people.filter((person) => Boolean(holidayStartingBetween(person, start, end)));
+}
+
+function renderPersonSummary(list, people, emptyMessage, { todayOnly = false, startingFrom = null, startingTo = null } = {}) {
   list.replaceChildren();
   if (!people.length) {
     list.append(makeElement("p", "list-empty", emptyMessage));
@@ -725,43 +751,64 @@ function renderPersonSummary(list, people, emptyMessage) {
   }
   const weekStart = toIsoDate(startOfWeek());
   const weekEnd = toIsoDate(endOfWeek());
-  for (const person of people) {
+  for (const person of sortPeopleForCurrent(people)) {
     const row = makeElement("div", "person-row");
+    if (isCurrentAccountPerson(person)) row.classList.add("is-current-user");
     row.style.setProperty("--person-hue", personHue(person.id));
     row.append(makeElement("span", "person-dot"));
     const copy = makeElement("div", "person-copy");
     copy.append(makeElement("p", "person-name", person.name));
-    const holiday = activeHoliday(person, todayIso()) ?? activeHoliday(person, weekStart, weekEnd);
-    if (holiday) copy.append(makeElement("p", "person-dates", holidayLabel(holiday)));
+    const holiday = startingFrom
+      ? holidayStartingBetween(person, startingFrom, startingTo ?? startingFrom)
+      : activeHoliday(person, todayIso()) ?? activeHoliday(person, weekStart, weekEnd);
+    if (holiday) copy.append(makeElement("p", "person-dates", todayOnly ? `Away today \u00b7 ${holidayLabel(holiday)}` : holidayLabel(holiday)));
     row.append(copy);
+    if (isCurrentAccountPerson(person)) row.append(makeElement("span", "you-badge", "You"));
     list.append(row);
   }
 }
 
 function renderSummaries() {
   const today = todayIso();
-  const weekStart = toIsoDate(startOfWeek());
   const weekEnd = toIsoDate(endOfWeek());
-  const awayToday = peopleAwayOn(state.people, today);
-  const awayWeek = peopleAwayBetween(state.people, weekStart, weekEnd);
+  const awayToday = peopleStartingBetween(state.people, today, today);
+  const awayWeek = peopleStartingBetween(state.people, today, weekEnd);
   $("awayTodayCount").textContent = String(awayToday.length);
   $("awayWeekCount").textContent = String(awayWeek.length);
   $("peopleCount").textContent = String(state.people.length);
-  renderPersonSummary($("awayTodayList"), awayToday, "Everyone is here today.");
-  renderPersonSummary($("awayWeekList"), awayWeek, "No one is away this week.");
+  renderPersonSummary($("awayTodayList"), awayToday, "No holidays start today.", { todayOnly: true, startingFrom: today, startingTo: today });
+  renderPersonSummary($("awayWeekList"), awayWeek, "No holidays start during the rest of this week.", { startingFrom: today, startingTo: weekEnd });
   const teamList = $("peopleList");
   teamList.replaceChildren();
   if (!state.people.length) {
     teamList.append(makeElement("p", "list-empty", "People appear automatically when their first holiday is added."));
   } else {
-    for (const person of state.people) {
+    for (const person of sortPeopleForCurrent(state.people)) {
       const row = makeElement("div", "team-row");
+      if (isCurrentAccountPerson(person)) row.classList.add("is-current-user");
       row.style.setProperty("--person-hue", personHue(person.id));
       row.append(makeElement("span", "person-dot"), makeElement("span", "person-name", person.name));
+      if (isCurrentAccountPerson(person)) row.append(makeElement("span", "you-badge", "You"));
       row.append(makeElement("span", "holiday-total", `${person.holidays.length} ${person.holidays.length === 1 ? "holiday" : "holidays"}`));
       teamList.append(row);
     }
   }
+}
+
+function isCurrentAccountPerson(person) {
+  return Boolean(person && state.account?.displayName && canonicalName(person.name) === canonicalName(state.account.displayName));
+}
+
+function sortPeopleForCurrent(people) {
+  return [...people].sort((first, second) => {
+    const firstIsCurrent = isCurrentAccountPerson(first);
+    const secondIsCurrent = isCurrentAccountPerson(second);
+    return firstIsCurrent === secondIsCurrent ? first.name.localeCompare(second.name) : firstIsCurrent ? -1 : 1;
+  });
+}
+
+function canManageHoliday(person) {
+  return Boolean(state.adminToken) || isCurrentAccountPerson(person);
 }
 
 function holidaysForDate(iso) {
@@ -772,21 +819,58 @@ function holidaysForDate(iso) {
       if (holiday.start <= iso && holiday.end >= iso) entries.push({ person, holiday });
     }
   }
-  return entries.sort((a, b) => a.person.name.localeCompare(b.person.name));
+  return entries.sort((a, b) => {
+    const aIsCurrent = isCurrentAccountPerson(a.person);
+    const bIsCurrent = isCurrentAccountPerson(b.person);
+    return aIsCurrent === bIsCurrent ? a.person.name.localeCompare(b.person.name) : aIsCurrent ? -1 : 1;
+  });
 }
 
 function makeHolidayButton(person, holiday, className = "holiday-chip") {
-  const button = makeElement("button", className);
-  button.type = "button";
+  const editable = canManageHoliday(person);
+  const button = makeElement(editable ? "button" : "div", `${className}${editable ? "" : " is-readonly"}`);
+  if (editable) button.type = "button";
+  if (isCurrentAccountPerson(person)) button.classList.add("is-current-user");
   button.style.setProperty("--person-hue", personHue(person.id));
   if (className === "holiday-chip") {
-    button.textContent = person.name;
+    button.append(makeElement("span", "holiday-chip-name", person.name));
+    if (isCurrentAccountPerson(person)) button.append(makeElement("span", "you-badge", "You"));
     button.title = `${person.name}: ${holidayLabel(holiday)}`;
   } else {
     button.append(makeElement("strong", "", person.name), makeElement("span", "", holidayLabel(holiday)));
   }
-  button.addEventListener("click", () => openHolidayEditor(person.id, holiday.id));
+  if (editable) button.addEventListener("click", () => openHolidayEditor(person.id, holiday.id));
   return button;
+}
+
+function openDayHolidays(iso) {
+  const entries = holidaysForDate(iso);
+  $("dayHolidaysTitle").textContent = friendlyDate(iso, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const list = $("dayHolidaysList");
+  list.replaceChildren();
+  for (const { person, holiday } of entries) {
+    const row = makeElement("article", "day-holiday-entry");
+    if (isCurrentAccountPerson(person)) row.classList.add("is-current-user");
+    row.style.setProperty("--person-hue", personHue(person.id));
+    const identity = makeElement("div", "day-holiday-identity");
+    identity.append(makeElement("span", "person-dot"));
+    const copy = makeElement("div", "person-copy");
+    copy.append(makeElement("strong", "person-name", person.name), makeElement("span", "person-dates", holidayLabel(holiday)));
+    identity.append(copy);
+    if (isCurrentAccountPerson(person)) identity.append(makeElement("span", "you-badge", "You"));
+    row.append(identity);
+    if (canManageHoliday(person)) {
+      const edit = makeElement("button", "button button-secondary day-holiday-edit", "Edit");
+      edit.type = "button";
+      edit.addEventListener("click", () => {
+        closeDialog($("dayHolidaysDialog"));
+        openHolidayEditor(person.id, holiday.id);
+      });
+      row.append(edit);
+    }
+    list.append(row);
+  }
+  showDialog($("dayHolidaysDialog"));
 }
 
 function renderCalendar() {
@@ -817,7 +901,13 @@ function renderCalendar() {
     const events = makeElement("div", "day-holidays");
     const entries = holidaysForDate(cell.iso);
     for (const { person, holiday } of entries.slice(0, 3)) events.append(makeHolidayButton(person, holiday));
-    if (entries.length > 3) events.append(makeElement("span", "holiday-overflow", `+${entries.length - 3} more`));
+    if (entries.length > 3) {
+      const overflow = makeElement("button", "holiday-overflow", `+${entries.length - 3} more`);
+      overflow.type = "button";
+      overflow.setAttribute("aria-label", `Show all ${entries.length} people away on ${friendlyDate(cell.iso, { day: "numeric", month: "long" })}`);
+      overflow.addEventListener("click", () => openDayHolidays(cell.iso));
+      events.append(overflow);
+    }
     day.append(events);
     grid.append(day);
   }
@@ -857,8 +947,9 @@ function openAddHoliday() {
   $("holidayForm").reset();
   $("editPersonId").value = "";
   $("editHolidayId").value = "";
-  $("employeeName").readOnly = false;
+  $("employeeName").readOnly = !state.adminToken;
   $("employeeName").value = state.account?.displayName ?? "";
+  $("employeeNameHint").textContent = state.adminToken ? "Admin mode can add holidays for any team member." : "Your own account is selected automatically. Admin mode is required to add holidays for someone else.";
   const initialDate = nextWorkingDayIso(todayIso()) ?? todayIso();
   setHolidayDate("holidayStart", initialDate, false);
   setHolidayDate("holidayEnd", initialDate, false);
@@ -869,13 +960,17 @@ function openAddHoliday() {
   $("holidayFormMessage").textContent = "";
   state.overlapConfirmation = null;
   showDialog($("holidayDialog"));
-  $("employeeName").focus();
+  (state.adminToken ? $("employeeName") : $("holidayStartButton")).focus();
 }
 
 function openHolidayEditor(personId, holidayId) {
   const person = state.people.find((candidate) => candidate.id === personId);
   const holiday = person?.holidays.find((candidate) => candidate.id === holidayId);
   if (!person || !holiday) return;
+  if (!canManageHoliday(person)) {
+    showToast("You can only change your own holidays. Use Admin mode to manage someone else.", "error");
+    return;
+  }
   $("editPersonId").value = personId;
   $("editHolidayId").value = holidayId;
   $("employeeName").value = person.name;
@@ -942,10 +1037,10 @@ async function commitPersonMutation(personId, mutate, { admin = false } = {}) {
   throw new UserMessageError("Someone else changed this record at the same time. Reload and try once more.");
 }
 
-async function createPersonWithHoliday(input) {
+async function createPersonWithHoliday(input, { admin = false } = {}) {
   await reloadPeople();
   const existing = findPersonByName(state.people, input.name);
-  if (existing) return addHolidayToExisting(existing, input);
+  if (existing) return addHolidayToExisting(existing, input, { admin });
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const personId = crypto.randomUUID();
     const person = {
@@ -955,7 +1050,9 @@ async function createPersonWithHoliday(input) {
     };
     const document = await encryptJson(person, state.secrets);
     try {
-      const response = await api.createPerson({ id: personId, document }, state.sessionToken);
+      const response = admin
+        ? await api.adminCreatePerson({ id: personId, document }, state.adminToken)
+        : await api.createPerson({ id: personId, document }, state.sessionToken);
       const verified = await verifiedPerson(response.person, personId);
       state.people.push(verified.person);
       state.people.sort((a, b) => a.name.localeCompare(b.name));
@@ -970,14 +1067,14 @@ async function createPersonWithHoliday(input) {
   throw new UserMessageError("A unique person record could not be created. Please try again.");
 }
 
-async function addHolidayToExisting(person, input) {
+async function addHolidayToExisting(person, input, { admin = false } = {}) {
   const holiday = { id: crypto.randomUUID(), start: input.start, end: input.end };
   return commitPersonMutation(person.id, (latest) => {
     if (latest.holidays.some((item) => item.start === holiday.start && item.end === holiday.end)) throw new UserMessageError("This exact holiday range already exists.");
     latest.holidays.push(holiday);
     latest.holidays.sort((a, b) => a.start.localeCompare(b.start));
     return latest;
-  });
+  }, { admin });
 }
 
 async function saveHoliday(event) {
@@ -987,6 +1084,11 @@ async function saveHoliday(event) {
   const holidayId = $("editHolidayId").value;
   const input = { name: $("employeeName").value, start: $("holidayStart").value, end: $("holidayEnd").value };
   const person = personId ? state.people.find((candidate) => candidate.id === personId) : findPersonByName(state.people, input.name);
+  const admin = Boolean(state.adminToken);
+  if ((person && !canManageHoliday(person)) || (!person && !admin && canonicalName(input.name) !== canonicalName(state.account?.displayName ?? ""))) {
+    $("holidayFormMessage").textContent = "You can only change your own holidays. Use Admin mode to manage someone else.";
+    return;
+  }
   const validation = validateHolidayInput(input, person?.holidays ?? [], holidayId || null);
   const message = $("holidayFormMessage");
   message.textContent = validation.errors.join(" ");
@@ -1013,13 +1115,13 @@ async function saveHoliday(event) {
         target.end = input.end;
         latest.holidays.sort((a, b) => a.start.localeCompare(b.start));
         return latest;
-      });
+      }, { admin });
       showToast("Holiday updated and confirmed in GitHub.");
     } else if (person) {
-      await addHolidayToExisting(person, input);
+      await addHolidayToExisting(person, input, { admin });
       showToast("Holiday added and confirmed in GitHub.");
     } else {
-      await createPersonWithHoliday(input);
+      await createPersonWithHoliday(input, { admin });
       showToast(`${validation.normalizedName} was added with their first holiday.`);
     }
     closeDialog($("holidayDialog"));
@@ -1037,6 +1139,10 @@ async function deleteHoliday() {
   const person = state.people.find((candidate) => candidate.id === personId);
   const holiday = person?.holidays.find((candidate) => candidate.id === holidayId);
   if (!person || !holiday) return;
+  if (!canManageHoliday(person)) {
+    showToast("You can only delete your own holidays. Use Admin mode to manage someone else.", "error");
+    return;
+  }
   closeDialog($("holidayDialog"));
   const confirmed = await confirmAction("Delete this holiday?", `${person.name} · ${holidayLabel(holiday)} will be removed. This cannot be undone.`);
   if (!confirmed) {
@@ -1050,7 +1156,7 @@ async function deleteHoliday() {
       if (current.start !== holiday.start || current.end !== holiday.end) throw new UserMessageError("Someone else edited this holiday first. It was not deleted.");
       latest.holidays = latest.holidays.filter((item) => item.id !== holidayId);
       return latest;
-    });
+    }, { admin: Boolean(state.adminToken) });
     showToast("Holiday deleted and confirmed in GitHub.");
   } catch (error) {
     showToast(error.message || "The holiday could not be deleted.", "error");
@@ -1262,6 +1368,13 @@ async function renamePerson(personId, input, button) {
       latest.name = name;
       return latest;
     }, { admin: true });
+    if (state.presence.members.some((member) => member.accountId === personId)) {
+      await commitPresenceMutation((latest) => {
+        const demoMember = latest.members.find((member) => member.accountId === personId);
+        if (demoMember) demoMember.displayName = name;
+        return latest;
+      });
+    }
     showToast("Display name updated.");
   } catch (error) {
     showToast(error.message || "The name could not be updated.", "error");
@@ -1273,15 +1386,34 @@ async function renamePerson(personId, input, button) {
 async function deletePerson(personId) {
   const person = state.people.find((candidate) => candidate.id === personId);
   if (!person) return;
-  const confirmed = await confirmAction("Delete this person?", `${person.name} and all ${person.holidays.length} of their holiday records will be removed. This cannot be undone.`, "Delete person");
+  const demoScheduleMember = state.presence.members.find((member) => member.accountId === personId);
+  const scheduleCopy = demoScheduleMember ? structuredClone(demoScheduleMember) : null;
+  const scheduleMessage = demoScheduleMember ? " Their demo work-location row will also be removed." : "";
+  const confirmed = await confirmAction("Delete this person?", `${person.name} and all ${person.holidays.length} of their holiday records will be removed.${scheduleMessage} This cannot be undone.`, "Delete person");
   if (!confirmed) return;
+  let scheduleRemoved = false;
   try {
+    if (demoScheduleMember) {
+      await commitPresenceMutation((latest) => {
+        latest.members = latest.members.filter((member) => member.accountId !== personId);
+        return latest;
+      });
+      scheduleRemoved = true;
+    }
     await api.adminDeletePerson(personId, state.adminToken);
     state.people = state.people.filter((candidate) => candidate.id !== personId);
     state.personMeta.delete(personId);
     renderAll();
     showToast(`${person.name} was deleted.`);
   } catch (error) {
+    if (scheduleRemoved && scheduleCopy) {
+      try {
+        await commitPresenceMutation((latest) => {
+          if (!latest.members.some((member) => member.accountId === personId)) latest.members.push(scheduleCopy);
+          return latest;
+        });
+      } catch {}
+    }
     if (error instanceof ApiError && error.status === 401) clearAdminSession({ prompt: true });
     showToast(error.message || "The person could not be deleted.", "error");
   }

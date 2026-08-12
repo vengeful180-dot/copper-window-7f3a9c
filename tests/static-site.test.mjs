@@ -87,7 +87,7 @@ test("homepage uses optimized architectural artwork over a resolution-independen
   assert.match(html, /assets\/images\/dream-team-architecture\.webp/u);
   assert.match(html, /alt="Modern emerald-glass office buildings surrounded by landscaped trees"/u);
   assert.doesNotMatch(styles, /url\("images\/portal-green-background\.webp"\)/u);
-  assert.match(styles, /\.app-shell\s*\{[^}]*repeating-radial-gradient[^}]*background-attachment:\s*fixed/u);
+  assert.match(styles, /\.app-shell\s*\{[^}]*repeating-radial-gradient[^}]*background-attachment:\s*scroll/u);
   assert.match(styles, /\.portal-hero-backdrop\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0[^}]*object-fit:\s*cover/u);
   assert.doesNotMatch(html, /portal-hero-visual/u);
 });
@@ -109,7 +109,7 @@ test("calendar and work schedule use dark integrated surfaces instead of white s
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v8/u);
+  assert.match(html, /20260812-emerald-ui-v9/u);
   assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.calendar-day\s*\{[^}]*linear-gradient/u);
   assert.match(styles, /\.work-legend span::before\s*\{/u);
@@ -123,7 +123,7 @@ test("dialogs use dark emerald surfaces and controls instead of white cards", as
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v8/u);
+  assert.match(html, /20260812-emerald-ui-v9/u);
   assert.match(styles, /\.modal-card\s*\{[^}]*linear-gradient[^}]*color:\s*#f7fcf8/u);
   assert.match(styles, /\.modal-card input, \.modal-card textarea\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
   assert.match(styles, /\.date-picker-trigger\s*\{[^}]*background:\s*rgba\(255,255,255,\.075\)/u);
@@ -133,27 +133,64 @@ test("dialogs use dark emerald surfaces and controls instead of white cards", as
   assert.match(styles, /html:has\(dialog\[open\]\)\s*\{\s*overflow:\s*hidden/u);
 });
 
-test("holiday calendar uses layered glass treatment for populated views", async () => {
+test("holiday calendar keeps its layered glass treatment without scroll-flickering blur layers", async () => {
   const [html, styles] = await Promise.all([
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /20260812-emerald-ui-v8/u);
-  assert.match(styles, /\.calendar-card\s*\{[^}]*backdrop-filter:\s*blur\(28px\) saturate\(1\.24\)/u);
+  assert.match(html, /20260812-emerald-ui-v9/u);
+  assert.match(styles, /\.calendar-card\s*\{[^}]*linear-gradient\(118deg[^}]*linear-gradient\(145deg/u);
   assert.match(styles, /\.calendar-card::before\s*\{/u);
   assert.match(styles, /\.calendar-card::after\s*\{/u);
   assert.match(styles, /\.calendar-day\s*\{[^}]*linear-gradient/u);
-  assert.match(styles, /\.holiday-chip\s*\{[^}]*backdrop-filter:\s*blur\(8px\)/u);
-  assert.match(styles, /@media \(min-width: 1081px\)[\s\S]*?\.sidebar\s*\{[^}]*max-height:\s*calc\(100vh - 126px\)[^}]*overflow-y:\s*auto/u);
+  assert.match(styles, /\.holiday-chip\s*\{[^}]*linear-gradient/u);
+  assert.doesNotMatch(styles, /\.(?:summary-card|calendar-card|calendar-grid|holiday-chip)\s*\{[^}]*backdrop-filter/u);
+  assert.match(styles, /@media \(min-width: 1081px\)[\s\S]*?\.sidebar\s*\{[^}]*max-height:\s*calc\(100vh - 126px\)[^}]*overflow-y:\s*auto[^}]*contain:\s*paint/u);
 });
 
 test("work-location controls fill the entire day cell and carry their status tint", async () => {
-  const styles = await readFile(new URL("../assets/styles.css", import.meta.url), "utf8");
+  const [app, styles] = await Promise.all([
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
   assert.match(styles, /button\.work-status\s*\{[^}]*width:\s*100%[^}]*min-height:\s*58px/u);
   assert.match(styles, /button\.work-status\.is-home\s*\{[^}]*linear-gradient/u);
   assert.match(styles, /button\.work-status\.is-office\s*\{[^}]*linear-gradient/u);
   assert.match(styles, /\.work-day-cell:has\(> button\.work-status\)\s*\{\s*padding:\s*0/u);
   assert.match(styles, /button\.work-status:focus-visible\s*\{/u);
+  assert.match(app, /const members = \[\.\.\.state\.presence\.members\]\.sort/u);
+  assert.match(app, /holidayRecordIds\.has\(member\.accountId\)[\s\S]*?"Demo"/u);
+  assert.match(app, /latest\.members = latest\.members\.filter\(\(member\) => member\.accountId !== personId\)/u);
+  assert.match(styles, /\.work-day-heading\.is-today\s*\{[^}]*linear-gradient[^}]*inset 2px 0/u);
+  assert.match(styles, /\.work-day-cell\.is-today\s*\{[^}]*linear-gradient[^}]*inset 2px 0/u);
+  assert.match(styles, /\.work-row\.is-current-user\s*\{[^}]*linear-gradient[^}]*box-shadow/u);
+});
+
+test("summary cards begin at today instead of repeating holidays that started earlier", async () => {
+  const app = await readFile(new URL("../assets/app.js", import.meta.url), "utf8");
+  assert.match(app, /const awayToday = peopleStartingBetween\(state\.people, today, today\)/u);
+  assert.match(app, /const awayWeek = peopleStartingBetween\(state\.people, today, weekEnd\)/u);
+  assert.match(app, /Away today/u);
+  assert.doesNotMatch(app, /const awayToday = peopleAwayOn/u);
+});
+
+test("holiday ownership controls, current-user accents, and crowded-day disclosure are wired into the UI", async () => {
+  const [html, api, app, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../assets/api.js", import.meta.url), "utf8"),
+    readFile(new URL("../assets/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../assets/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="dayHolidaysDialog"/u);
+  assert.match(html, /20260812-owner-controls-v1/u);
+  assert.match(api, /adminCreatePerson:\s*\(body, adminToken\)/u);
+  assert.match(app, /function canManageHoliday\(person\)/u);
+  assert.match(app, /const editable = canManageHoliday\(person\)/u);
+  assert.match(app, /openDayHolidays\(cell\.iso\)/u);
+  assert.match(app, /sortPeopleForCurrent/u);
+  assert.match(styles, /\.holiday-chip\.is-current-user/u);
+  assert.match(styles, /\.day-holiday-entry\.is-current-user/u);
+  assert.match(styles, /\.you-badge/u);
 });
 
 test("account records remain server-side and are excluded from the Pages artifact", async () => {

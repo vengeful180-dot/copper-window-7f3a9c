@@ -1,4 +1,4 @@
-import { ACCOUNT_LOOKUP_PATTERN, validateAccountRecord, validateAnonymousIndex } from "./validation.js";
+import { ACCOUNT_LOOKUP_PATTERN, validateAccountRecord, validateAnonymousIndex, validateOwnershipRecord } from "./validation.js";
 
 const encoder = new TextEncoder();
 
@@ -132,13 +132,32 @@ export class GitHubStore {
     throw new GitHubError("The anonymous index changed too often to update safely.", 409);
   }
 
-  async createPerson(id, document) {
+  ownerPath(id) {
+    return `data/owners/${id}.json`;
+  }
+
+  async getPersonOwner(id, { allowMissing = false } = {}) {
+    const file = await this.get(this.ownerPath(id), { allowMissing });
+    if (!file) return null;
+    return { ...file, document: validateOwnershipRecord(file.document) };
+  }
+
+  async requirePersonOwner(id, accountId) {
+    const owner = await this.getPersonOwner(id, { allowMissing: true });
+    if (!owner || owner.document.accountId !== accountId) throw new GitHubError("You can only change your own holidays. Use Admin mode to manage someone else.", 403);
+    return owner;
+  }
+
+  async createPerson(id, document, ownerAccountId = null) {
     const path = `data/people/${id}.enc.json`;
     if (await this.get(path, { allowMissing: true })) throw new ConflictError(null, "That anonymous identifier already exists. Try again.");
     let person;
+    let owner;
     try {
       person = await this.put(path, document, "Add encrypted holiday record");
+      if (ownerAccountId) owner = await this.put(this.ownerPath(id), validateOwnershipRecord({ version: 1, accountId: ownerAccountId }), "Bind holiday record to its account");
     } catch (error) {
+      if (person?.sha) await this.remove(path, person.sha, "Roll back incomplete encrypted record").catch(() => {});
       if (error instanceof GitHubError && error.status === 409) throw new ConflictError(null, "That anonymous identifier already exists. Try again.");
       throw error;
     }
@@ -146,10 +165,11 @@ export class GitHubStore {
     try {
       index = await this.updateIndex((current) => ({ people: [...new Set([...current.people, id])].sort() }), "Add anonymous team member reference");
     } catch (error) {
+      if (owner?.sha) await this.remove(this.ownerPath(id), owner.sha, "Roll back incomplete holiday ownership").catch(() => {});
       if (person?.sha) await this.remove(path, person.sha, "Roll back incomplete encrypted record").catch(() => {});
       throw error;
     }
-    return { person, index };
+    return { person, index, ...(owner ? { owner } : {}) };
   }
 
   async getAccount(lookup, { allowMissing = false } = {}) {
@@ -180,6 +200,16 @@ export class GitHubStore {
         if (error instanceof GitHubError && error.status === 409) {
           const refreshed = await this.get(path, { allowMissing: true });
           if (refreshed) await this.remove(path, refreshed.sha, "Delete encrypted person record");
+        } else throw error;
+      }
+    }
+    const owner = await this.getPersonOwner(id, { allowMissing: true });
+    if (owner) {
+      try { await this.remove(this.ownerPath(id), owner.sha, "Delete holiday ownership record"); }
+      catch (error) {
+        if (error instanceof GitHubError && error.status === 409) {
+          const refreshed = await this.getPersonOwner(id, { allowMissing: true });
+          if (refreshed) await this.remove(this.ownerPath(id), refreshed.sha, "Delete holiday ownership record");
         } else throw error;
       }
     }

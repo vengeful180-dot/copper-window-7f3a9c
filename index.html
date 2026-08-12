@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#063326">
     <title>Team Time Away</title>
     <link rel="preload" as="image" href="assets/images/dream-team-architecture.webp" type="image/webp">
-    <link rel="stylesheet" href="assets/styles.css?v=20260812-emerald-ui-v8">
+    <link rel="stylesheet" href="assets/styles.css?v=20260812-emerald-ui-v9">
   </head>
   <body>
     <a class="skip-link" href="#mainContent">Skip to main content</a>
@@ -132,7 +132,7 @@
       <form id="holidayForm" class="modal-card" method="dialog" novalidate>
         <div class="modal-heading"><div><p id="holidayModalEyebrow" class="eyebrow">New time away</p><h2 id="holidayModalTitle">Add holiday</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="holidayDialog" aria-label="Close">&times;</button></div>
         <input id="editPersonId" type="hidden"><input id="editHolidayId" type="hidden">
-        <div class="field"><label for="employeeName">Employee name</label><input id="employeeName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter a full name"><p class="field-hint">New names are added to the team automatically.</p></div>
+        <div class="field"><label for="employeeName">Employee name</label><input id="employeeName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter a full name"><p id="employeeNameHint" class="field-hint">Your own account is selected automatically.</p></div>
         <div class="date-fields">
           <div class="field"><label for="holidayStartButton">From</label><input id="holidayStart" name="start" type="hidden"><button id="holidayStartButton" class="date-picker-trigger" type="button" aria-haspopup="dialog" aria-controls="datePickerDialog" aria-describedby="holidayDateHint holidayFormMessage"><span id="holidayStartDisplay">Choose a date</span><span class="date-picker-icon" aria-hidden="true">▦</span></button></div>
           <div class="field"><label for="holidayEndButton">To</label><input id="holidayEnd" name="end" type="hidden"><button id="holidayEndButton" class="date-picker-trigger" type="button" aria-haspopup="dialog" aria-controls="datePickerDialog" aria-describedby="holidayDateHint holidayFormMessage"><span id="holidayEndDisplay">Choose a date</span><span class="date-picker-icon" aria-hidden="true">▦</span></button></div>
@@ -141,6 +141,14 @@
         <p id="holidayFormMessage" class="form-message" role="alert"></p>
         <div class="modal-actions"><button id="deleteHolidayButton" class="button button-danger" type="button" hidden>Delete holiday</button><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="holidayDialog">Cancel</button><button id="saveHolidayButton" class="button button-primary" type="submit">Save holiday</button></div>
       </form>
+    </dialog>
+
+    <dialog id="dayHolidaysDialog" class="modal modal-day-holidays">
+      <section class="modal-card">
+        <div class="modal-heading"><div><p class="eyebrow">Everyone away</p><h2 id="dayHolidaysTitle">Day</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="dayHolidaysDialog" aria-label="Close">&times;</button></div>
+        <div id="dayHolidaysList" class="day-holidays-list"></div>
+        <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="dayHolidaysDialog">Close</button></div>
+      </section>
     </dialog>
 
     <dialog id="datePickerDialog" class="modal date-picker-modal">
@@ -187,6 +195,6 @@
     </dialog>
 
     <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="assets/app.js?v=20260812-header-fix"></script>
+    <script type="module" src="assets/app.js?v=20260812-owner-controls-v1"></script>
   </body>
 </html>

@@ -40,13 +40,15 @@ test("outbound fetch keeps the Workers runtime global context", async () => {
   assert.equal(correctContext, true);
 });
 
-test("new person creation writes an encrypted file and anonymous index only", async () => {
+test("new account-owned person creation writes an encrypted file, opaque owner, and anonymous index", async () => {
   const github = new MockGitHub({ "data/index.json": { people: [] } });
   const store = new GitHubStore(env, github.fetch);
   const document = { version: 1, kdf: { salt: "cipher" }, cipher: { data: "opaque" } };
-  const result = await store.createPerson(firstId, document);
+  const result = await store.createPerson(firstId, document, concurrentId);
   assert.deepEqual(github.files.get("data/index.json").document, { people: [firstId] });
+  assert.deepEqual(github.files.get(`data/owners/${firstId}.json`).document, { version: 1, accountId: concurrentId });
   assert.deepEqual(result.person.document, document);
+  assert.deepEqual(result.owner.document, { version: 1, accountId: concurrentId });
   assert.equal(JSON.stringify(github.files.get("data/index.json").document).includes("name"), false);
 });
 
@@ -134,6 +136,21 @@ test("index SHA conflict refetches, merges UUID additions, and retries", async (
   const store = new GitHubStore(env, github.fetch);
   await store.createPerson(firstId, { version: 1, ciphertext: "opaque" });
   assert.deepEqual(github.files.get("data/index.json").document.people, [firstId, concurrentId].sort());
+});
+
+test("Admin person deletion removes the encrypted record and its opaque ownership binding", async () => {
+  const personPath = `data/people/${firstId}.enc.json`;
+  const ownerPath = `data/owners/${firstId}.json`;
+  const github = new MockGitHub({
+    "data/index.json": { people: [firstId] },
+    [personPath]: { version: 1, ciphertext: "opaque" },
+    [ownerPath]: { version: 1, accountId: concurrentId },
+  });
+  const store = new GitHubStore(env, github.fetch);
+  await store.deletePerson(firstId);
+  assert.deepEqual(github.files.get("data/index.json").document, { people: [] });
+  assert.equal(github.files.has(personPath), false);
+  assert.equal(github.files.has(ownerPath), false);
 });
 
 test("stale encrypted update returns latest ciphertext instead of overwriting", async () => {
