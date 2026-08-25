@@ -1,0 +1,89 @@
+name: Deploy secure write gateway
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify protected data repository access
+        shell: bash
+        env:
+          PLANNER_DATA_TOKEN: ${{ secrets.PLANNER_DATA_TOKEN }}
+          PLANNER_DATA_REPO: ${{ vars.PLANNER_DATA_REPO }}
+        run: |
+          test -n "$PLANNER_DATA_REPO"
+          repository="$(curl --fail --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $PLANNER_DATA_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY_OWNER/$PLANNER_DATA_REPO")"
+          jq -e '.permissions.push == true' <<< "$repository" > /dev/null
+          curl --fail --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $PLANNER_DATA_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY_OWNER/$PLANNER_DATA_REPO/contents/data/index.json?ref=main" > /dev/null
+      - name: Deploy Worker
+        shell: bash
+        run: npx wrangler deploy --config worker/wrangler.toml | tee worker-deploy.log
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Configure Worker secrets
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE_AUTH_TOKEN_HASH: ${{ secrets.SITE_AUTH_TOKEN_HASH }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          ADMIN_PASSWORD_SALT: ${{ secrets.ADMIN_PASSWORD_SALT }}
+          ADMIN_SESSION_SECRET: ${{ secrets.ADMIN_SESSION_SECRET }}
+          ACCOUNT_LOOKUP_SECRET: ${{ secrets.ACCOUNT_LOOKUP_SECRET }}
+          ACCOUNT_SESSION_SECRET: ${{ secrets.ACCOUNT_SESSION_SECRET }}
+          ACCOUNT_STORAGE_SECRET: ${{ secrets.ACCOUNT_STORAGE_SECRET }}
+          GITHUB_DATA_TOKEN: ${{ secrets.PLANNER_DATA_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ vars.PLANNER_DATA_REPO }}
+          ALLOWED_ORIGIN: ${{ vars.PAGES_ORIGIN }}
+        run: |
+          jq -n \
+            --arg site "$SITE_AUTH_TOKEN_HASH" \
+            --arg admin "$ADMIN_PASSWORD_HASH" \
+            --arg salt "$ADMIN_PASSWORD_SALT" \
+            --arg session "$ADMIN_SESSION_SECRET" \
+            --arg account_lookup "$ACCOUNT_LOOKUP_SECRET" \
+            --arg account_session "$ACCOUNT_SESSION_SECRET" \
+            --arg account_storage "$ACCOUNT_STORAGE_SECRET" \
+            --arg token "$GITHUB_DATA_TOKEN" \
+            --arg owner "$GITHUB_OWNER" \
+            --arg repo "$GITHUB_REPO" \
+            --arg origin "$ALLOWED_ORIGIN" \
+            '{SITE_AUTH_TOKEN_HASH:$site,ADMIN_PASSWORD_HASH:$admin,ADMIN_PASSWORD_SALT:$salt,ADMIN_SESSION_SECRET:$session,ACCOUNT_LOOKUP_SECRET:$account_lookup,ACCOUNT_SESSION_SECRET:$account_session,ACCOUNT_STORAGE_SECRET:$account_storage,GITHUB_DATA_TOKEN:$token,GITHUB_OWNER:$owner,GITHUB_REPO:$repo,ALLOWED_ORIGIN:$origin}' \
+            > worker-secrets.json
+          npx wrangler secret bulk worker-secrets.json --config worker/wrangler.toml
+          rm -f worker-secrets.json
+      - name: Verify Worker health
+        shell: bash
+        run: |
+          worker_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' worker-deploy.log | tail -n 1)"
+          test -n "$worker_url"
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error "$worker_url/health" > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              exit 1
+            fi
+            sleep 2
+          done

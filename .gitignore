@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+.vinext/
+.wrangler/
+.codex-dev.log
+.dev.vars
+.env
+.env.local
+.initial-credentials.txt
+.rotation-secrets.txt
+data/
+*.log
+.DS_Store
+Thumbs.db

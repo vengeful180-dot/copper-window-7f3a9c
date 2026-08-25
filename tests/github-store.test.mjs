@@ -1,0 +1,209 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { ConflictError, digestDocument, GitHubStore } from "../worker/src/github-store.js";
+import { encodeContent, MockGitHub } from "./helpers.mjs";
+
+const env = { GITHUB_DATA_TOKEN: "test-token", GITHUB_OWNER: "example", GITHUB_REPO: "planner", GITHUB_BRANCH: "main" };
+const firstId = "11111111-1111-4111-8111-111111111111";
+const concurrentId = "22222222-2222-4222-8222-222222222222";
+const accountLookup = "A".repeat(43);
+
+function accountRecord() {
+  return {
+    version: 1,
+    id: firstId,
+    kdf: { name: "PBKDF2", hash: "SHA-256", iterations: 310_000, salt: "AAAAAAAAAAAAAAAAAAAAAA==" },
+    verifierHash: "B".repeat(43),
+    wrappedEnvelope: { version: 1, cipher: { name: "AES-GCM", iv: "AAAAAAAAAAAAAAAA", data: "AAAAAAAAAAAAAAAAAAAAAA" } },
+  };
+}
+
+test("GitHub reads use a URL string accepted by the Workers fetch runtime", async () => {
+  let inputType = null;
+  const fetchImpl = async (input) => {
+    inputType = typeof input;
+    return Response.json({ type: "file", sha: "index-sha", content: btoa(JSON.stringify({ people: [] })) });
+  };
+  const store = new GitHubStore(env, fetchImpl);
+  await store.get("data/index.json");
+  assert.equal(inputType, "string");
+});
+
+test("outbound fetch keeps the Workers runtime global context", async () => {
+  let correctContext = false;
+  async function runtimeFetch() {
+    correctContext = this === globalThis;
+    return Response.json({ type: "file", sha: "index-sha", content: btoa(JSON.stringify({ people: [] })) });
+  }
+  const store = new GitHubStore(env, runtimeFetch);
+  await store.get("data/index.json");
+  assert.equal(correctContext, true);
+});
+
+test("new account-owned person creation writes an encrypted file, opaque owner, and anonymous index", async () => {
+  const github = new MockGitHub({ "data/index.json": { people: [] } });
+  const store = new GitHubStore(env, github.fetch);
+  const document = { version: 1, kdf: { salt: "cipher" }, cipher: { data: "opaque" } };
+  const result = await store.createPerson(firstId, document, concurrentId);
+  assert.deepEqual(github.files.get("data/index.json").document, { people: [firstId] });
+  assert.deepEqual(github.files.get(`data/owners/${firstId}.json`).document, { version: 1, accountId: concurrentId });
+  assert.deepEqual(result.person.document, document);
+  assert.deepEqual(result.owner.document, { version: 1, accountId: concurrentId });
+  assert.equal(JSON.stringify(github.files.get("data/index.json").document).includes("name"), false);
+});
+
+test("account creation succeeds while the new branch commit is not yet visible to GET", async () => {
+  const github = new MockGitHub();
+  const accountPath = `data/accounts/${accountLookup}.json`;
+  let accountReads = 0;
+  const eventuallyConsistentFetch = async (input, init = {}) => {
+    if ((init.method || "GET").toUpperCase() === "GET" && github.path(input) === accountPath) {
+      accountReads += 1;
+      if (accountReads > 1) return Response.json({ message: "Not Found" }, { status: 404 });
+    }
+    return github.fetch(input, init);
+  };
+  const store = new GitHubStore(env, eventuallyConsistentFetch);
+  const record = accountRecord();
+
+  const created = await store.createAccount(accountLookup, record);
+
+  assert.deepEqual(github.files.get(accountPath).document, record);
+  assert.deepEqual(created.document, record);
+  assert.equal(created.digest, await digestDocument(record));
+  assert.equal(accountReads, 1);
+});
+
+test("account rename atomically moves the opaque account record", async () => {
+  const currentLookup = "A".repeat(43);
+  const nextLookup = "C".repeat(43);
+  const currentPath = `data/accounts/${currentLookup}.json`;
+  const nextPath = `data/accounts/${nextLookup}.json`;
+  const original = accountRecord();
+  const replacement = { ...accountRecord(), wrappedEnvelope: { version: 1, cipher: { name: "AES-GCM", iv: "BBBBBBBBBBBBBBBB", data: "BBBBBBBBBBBBBBBBBBBBBB" } } };
+  const github = new MockGitHub({ [currentPath]: original });
+  const store = new GitHubStore(env, github.fetch);
+
+  await store.renameAccount(currentLookup, nextLookup, replacement);
+
+  assert.equal(github.files.has(currentPath), false);
+  assert.deepEqual(github.files.get(nextPath).document, replacement);
+});
+
+test("account rename refuses to overwrite an existing opaque account", async () => {
+  const currentLookup = "A".repeat(43);
+  const nextLookup = "C".repeat(43);
+  const currentPath = `data/accounts/${currentLookup}.json`;
+  const nextPath = `data/accounts/${nextLookup}.json`;
+  const github = new MockGitHub({ [currentPath]: accountRecord(), [nextPath]: { ...accountRecord(), id: concurrentId } });
+  const store = new GitHubStore(env, github.fetch);
+
+  await assert.rejects(() => store.renameAccount(currentLookup, nextLookup, accountRecord()), ConflictError);
+  assert.equal(github.files.has(currentPath), true);
+  assert.equal(github.files.get(nextPath).document.id, concurrentId);
+});
+
+test("encrypted updates succeed while the branch GET still returns the previous commit", async () => {
+  const path = `data/people/${firstId}.enc.json`;
+  const original = { version: 1, ciphertext: "before" };
+  const next = { version: 1, ciphertext: "after" };
+  const github = new MockGitHub({ [path]: original });
+  const stale = structuredClone(github.files.get(path));
+  let reads = 0;
+  const eventuallyConsistentFetch = async (input, init = {}) => {
+    if ((init.method || "GET").toUpperCase() === "GET" && github.path(input) === path) {
+      reads += 1;
+      if (reads > 1) return Response.json({ type: "file", sha: stale.sha, content: encodeContent(stale.document) });
+    }
+    return github.fetch(input, init);
+  };
+  const store = new GitHubStore(env, eventuallyConsistentFetch);
+
+  const saved = await store.updateEncrypted(path, next, await digestDocument(original), "Update encrypted holiday record");
+
+  assert.deepEqual(github.files.get(path).document, next);
+  assert.deepEqual(saved.document, next);
+  assert.equal(saved.digest, await digestDocument(next));
+  assert.equal(reads, 1);
+});
+
+test("first holiday creation does not reread newly committed branch files", async () => {
+  const path = `data/people/${firstId}.enc.json`;
+  const indexPath = "data/index.json";
+  const document = { version: 1, ciphertext: "opaque" };
+  const github = new MockGitHub({ [indexPath]: { people: [] } });
+  const staleIndex = structuredClone(github.files.get(indexPath));
+  let personReads = 0;
+  let indexReads = 0;
+  const eventuallyConsistentFetch = async (input, init = {}) => {
+    if ((init.method || "GET").toUpperCase() === "GET") {
+      const requestPath = github.path(input);
+      if (requestPath === path) {
+        personReads += 1;
+        if (personReads > 1) return Response.json({ message: "Not Found" }, { status: 404 });
+      }
+      if (requestPath === indexPath) {
+        indexReads += 1;
+        if (indexReads > 1) return Response.json({ type: "file", sha: staleIndex.sha, content: encodeContent(staleIndex.document) });
+      }
+    }
+    return github.fetch(input, init);
+  };
+  const store = new GitHubStore(env, eventuallyConsistentFetch);
+
+  const created = await store.createPerson(firstId, document);
+
+  assert.deepEqual(created.person.document, document);
+  assert.deepEqual(created.index.document, { people: [firstId] });
+  assert.equal(personReads, 1);
+  assert.equal(indexReads, 1);
+});
+
+test("index SHA conflict refetches, merges UUID additions, and retries", async () => {
+  const github = new MockGitHub({ "data/index.json": { people: [] } });
+  github.conflictOnce("data/index.json", { people: [concurrentId] });
+  const store = new GitHubStore(env, github.fetch);
+  await store.createPerson(firstId, { version: 1, ciphertext: "opaque" });
+  assert.deepEqual(github.files.get("data/index.json").document.people, [firstId, concurrentId].sort());
+});
+
+test("Admin person deletion removes the encrypted record and its opaque ownership binding", async () => {
+  const personPath = `data/people/${firstId}.enc.json`;
+  const ownerPath = `data/owners/${firstId}.json`;
+  const github = new MockGitHub({
+    "data/index.json": { people: [firstId] },
+    [personPath]: { version: 1, ciphertext: "opaque" },
+    [ownerPath]: { version: 1, accountId: concurrentId },
+  });
+  const store = new GitHubStore(env, github.fetch);
+  await store.deletePerson(firstId);
+  assert.deepEqual(github.files.get("data/index.json").document, { people: [] });
+  assert.equal(github.files.has(personPath), false);
+  assert.equal(github.files.has(ownerPath), false);
+});
+
+test("stale encrypted update returns latest ciphertext instead of overwriting", async () => {
+  const original = { version: 1, ciphertext: "first" };
+  const concurrent = { version: 1, ciphertext: "concurrent" };
+  const github = new MockGitHub({ [`data/people/${firstId}.enc.json`]: concurrent });
+  const store = new GitHubStore(env, github.fetch);
+  await assert.rejects(
+    () => store.updateEncrypted(`data/people/${firstId}.enc.json`, { version: 1, ciphertext: "ours" }, "wrong-digest", "Update"),
+    (error) => error instanceof ConflictError && error.latest.document.ciphertext === "concurrent",
+  );
+  assert.deepEqual(github.files.get(`data/people/${firstId}.enc.json`).document, concurrent);
+  assert.notEqual(await digestDocument(original), await digestDocument(concurrent));
+});
+
+test("GitHub race after version check is surfaced with the newest record", async () => {
+  const original = { version: 1, ciphertext: "first" };
+  const concurrent = { version: 1, ciphertext: "second" };
+  const github = new MockGitHub({ [`data/people/${firstId}.enc.json`]: original });
+  github.conflictOnce(`data/people/${firstId}.enc.json`, concurrent);
+  const store = new GitHubStore(env, github.fetch);
+  const originalDigest = await digestDocument(original);
+  await assert.rejects(
+    () => store.updateEncrypted(`data/people/${firstId}.enc.json`, { version: 1, ciphertext: "ours" }, originalDigest, "Update"),
+    (error) => error instanceof ConflictError && error.latest.document.ciphertext === "second",
+  );
+});

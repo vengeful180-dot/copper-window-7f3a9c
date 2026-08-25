@@ -1,0 +1,22 @@
+name = "quiet-leave-gateway"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[vars]
+GITHUB_BRANCH = "main"
+
+[[ratelimits]]
+name = "AUTH_RATE_LIMITER"
+namespace_id = "647382901"
+simple = { limit = 12, period = 60 }
+
+[[ratelimits]]
+name = "ACCOUNT_RATE_LIMITER"
+namespace_id = "647382902"
+simple = { limit = 120, period = 60 }
+
+[[ratelimits]]
+name = "WRITE_RATE_LIMITER"
+namespace_id = "647382903"
+simple = { limit = 45, period = 60 }

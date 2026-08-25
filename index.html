@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://quiet-leave-gateway.vengeful180.workers.dev; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'; child-src 'none'; worker-src 'none'; media-src 'none'; manifest-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
+    <meta name="theme-color" content="#081923">
+    <title>Team Time Away</title>
+    <link rel="preload" as="image" href="assets/images/dream-team-red-pandas.webp" type="image/webp">
+    <link rel="preload" as="image" href="assets/images/dream-team-site-background-v2.webp" type="image/webp">
+    <link rel="stylesheet" href="assets/styles.css?v=20260825-security-v1">
+    <link rel="stylesheet" href="assets/design-v3.css?v=20260825-mom-reader-v15">
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">Skip to main content</a>
+
+    <main id="unlockView" class="unlock-view">
+      <section class="unlock-card" aria-labelledby="unlockTitle">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p class="eyebrow">Private team planner</p>
+        <h1 id="unlockTitle">Welcome to time away.</h1>
+        <p class="unlock-copy">Log in with your own account, or create one with the team invite password.</p>
+
+        <div class="auth-tabs" role="tablist" aria-label="Account access">
+          <button id="loginTab" class="auth-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="loginPanel">Log in</button>
+          <button id="createTab" class="auth-tab" type="button" role="tab" aria-selected="false" aria-controls="createPanel">Create account</button>
+        </div>
+
+        <section id="loginPanel" class="auth-panel" role="tabpanel" aria-labelledby="loginTab">
+          <form id="loginForm" class="auth-form" novalidate>
+            <div class="field"><label for="loginName">Your name</label><input id="loginName" name="username" type="text" autocomplete="username" maxlength="80" required autofocus placeholder="Enter your full name"></div>
+            <div class="field"><label for="loginPassword">Your password</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="256" required></div>
+            <p id="loginError" class="form-message" role="alert"></p>
+            <button class="button button-primary auth-submit" type="submit">Log in</button>
+          </form>
+        </section>
+
+        <section id="createPanel" class="auth-panel" role="tabpanel" aria-labelledby="createTab" hidden>
+          <form id="createForm" class="auth-form" novalidate>
+            <div class="field"><label for="createName">Your full name</label><input id="createName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter your full name"></div>
+            <div class="field"><label for="createPassword">Create a personal password</label><input id="createPassword" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="256" required><p class="field-hint">Use at least 8 characters. This password is never stored.</p></div>
+            <div class="field"><label for="confirmPassword">Confirm personal password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
+            <div class="field invite-field"><label for="teamInvitePassword">Team invite password</label><input id="teamInvitePassword" type="password" autocomplete="off" minlength="7" maxlength="256" required><p class="field-hint">This is the existing shared team password. You need it only when creating the account.</p></div>
+            <p id="createError" class="form-message" role="alert"></p>
+            <button class="button button-primary auth-submit" type="submit">Create account</button>
+          </form>
+        </section>
+
+        <div class="privacy-note"><span aria-hidden="true">&#9679;</span> Passwords are never stored. Account and calendar files stay encrypted.</div>
+      </section>
+      <p class="unlock-footer">Private team planner &middot; Unlisted, not publicly indexed</p>
+    </main>
+
+    <div id="appView" class="app-shell" hidden>
+      <header class="app-header">
+        <button id="brandHomeButton" class="brand-inline brand-home" type="button" aria-label="Open homepage">
+          <div class="brand-mark brand-mark-small" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div><p id="headerGroupName" class="eyebrow">Dream Team</p><p class="header-date" id="headerDate"></p></div>
+        </button>
+        <nav class="app-nav" aria-label="Planner pages">
+          <button id="navHome" class="nav-button is-active" type="button">Home</button>
+          <button id="navHolidays" class="nav-button" type="button">Holidays</button>
+          <button id="navWork" class="nav-button" type="button">Work location</button>
+        </nav>
+        <div class="header-actions">
+          <button id="profileButton" class="account-chip" type="button" aria-label="Open your profile" aria-haspopup="dialog" aria-controls="profileDialog"><span class="account-avatar" aria-hidden="true"></span><span id="signedInName" class="account-name"></span><span class="profile-chevron" aria-hidden="true">&rsaquo;</span></button>
+          <button id="adminButton" class="button button-quiet" type="button">Admin</button>
+          <button id="lockButton" class="button button-quiet" type="button">Log out</button>
+          <button id="addHolidayButton" class="button button-primary" type="button"><span aria-hidden="true">+</span> Add holiday</button>
+        </div>
+      </header>
+
+      <div id="backendBanner" class="status-banner" role="status" hidden></div>
+
+      <main id="mainContent">
+        <section id="homePage" class="page-view portal-page" aria-labelledby="homeTitle">
+          <div class="portal-hero">
+            <img class="portal-hero-backdrop" src="assets/images/dream-team-red-pandas.webp" width="1717" height="916" alt="Six red pandas gathered together on mossy branches in a forest" decoding="async" fetchpriority="high">
+            <div class="portal-hero-copy">
+              <p class="eyebrow">Your team, in rhythm</p>
+              <h1 id="homeTitle"><span id="homeGroupName">Dream Team</span>, moving in sync.</h1>
+              <p>Plan time away, choose where you are working, and keep every team shortcut within reach.</p>
+              <button id="editHomeButton" class="button button-secondary" type="button" hidden>Edit homepage</button>
+            </div>
+            <section class="quick-links-card hero-shortcuts" aria-label="Team shortcuts">
+              <div id="quickLinks" class="quick-links"></div>
+            </section>
+            <button id="teamOfficeDaysButton" class="team-office-days" type="button" aria-haspopup="dialog" aria-controls="teamOfficeDaysDialog">
+              <span class="team-office-days-heading"><span><small>Monthly rhythm</small><strong>Team office days</strong></span><span id="teamOfficeDaysMonth" class="team-office-days-month"></span></span>
+              <span id="teamOfficeDaysSlots" class="team-office-days-slots" aria-live="polite"></span>
+              <span id="teamOfficeDaysHint" class="team-office-days-hint">Set by Admin</span>
+            </button>
+          </div>
+
+          <div class="home-highlights">
+            <button id="momCardButton" class="home-feature-card mom-card" type="button" aria-haspopup="dialog" aria-controls="momDialog">
+              <span class="home-feature-overline"><span>Minutes of meeting</span><span>01</span></span>
+              <span class="home-feature-media" aria-hidden="true"><img src="assets/images/home-mom.webp" width="1200" height="640" alt="" loading="lazy" decoding="async"></span>
+              <span class="home-feature-heading"><span class="mom-title">MOM</span></span>
+              <span id="momValue" class="mom-copy empty-copy"></span>
+              <span class="home-feature-footer"><span id="momDetail"></span><span class="home-feature-arrow" aria-hidden="true">&nearr;</span></span>
+            </button>
+            <button id="shoutoutsCardButton" class="home-feature-card shoutouts-card" type="button" aria-haspopup="dialog" aria-controls="shoutoutsDialog">
+              <span class="home-feature-overline"><span>Team recognition</span><span>02</span></span>
+              <span class="home-feature-media" aria-hidden="true"><img src="assets/images/home-shoutouts.webp" width="1200" height="640" alt="" loading="lazy" decoding="async"></span>
+              <span class="home-feature-heading"><span id="shoutoutsTitle" class="home-feature-title">Shoutouts</span><span id="shoutoutPeriod" class="home-feature-meta"></span></span>
+              <span id="shoutoutPeople" class="home-feature-list shoutout-list" aria-live="polite"></span>
+              <span class="home-feature-footer"><span id="shoutoutDetail"></span><span class="home-feature-arrow" aria-hidden="true">&nearr;</span></span>
+            </button>
+            <button id="birthdaysCardButton" class="home-feature-card birthdays-card" type="button" aria-haspopup="dialog" aria-controls="birthdaysDialog">
+              <span class="home-feature-overline"><span>Team birthdays</span><span>03</span></span>
+              <span class="home-feature-media" aria-hidden="true"><img src="assets/images/home-birthdays.webp" width="1200" height="640" alt="" loading="lazy" decoding="async"></span>
+              <span class="home-feature-heading"><span id="birthdaysTitle" class="home-feature-title">Birthdays</span><span id="birthdayMonth" class="home-feature-meta"></span></span>
+              <span id="birthdayPeople" class="home-feature-list birthday-list" aria-live="polite"></span>
+              <span class="home-feature-footer"><span id="birthdayDetail"></span><span class="home-feature-arrow" aria-hidden="true">&nearr;</span></span>
+            </button>
+          </div>
+        </section>
+
+        <section id="holidaysPage" class="page-view holidays-page" aria-labelledby="monthTitle" hidden>
+          <div class="workspace">
+            <aside class="sidebar" aria-label="Team summary">
+              <section class="summary-card spotlight-card"><div class="card-heading"><div><p class="eyebrow">Right now</p><h2>Who&rsquo;s away today</h2></div><span id="awayTodayCount" class="count-badge" data-label="away">0</span></div><div id="awayTodayList" class="person-list"></div></section>
+              <section class="summary-card"><div class="card-heading"><div><p class="eyebrow">This week</p><h2>Who&rsquo;s away</h2></div><span id="awayWeekCount" class="count-badge" data-label="away">0</span></div><div id="awayWeekList" class="person-list"></div></section>
+              <section class="summary-card team-card"><div class="card-heading"><div><p class="eyebrow">People</p><h2 id="peopleCardTitle">This month</h2></div><span id="peopleCount" class="count-badge" data-label="people">0</span></div><div id="peopleList" class="team-list"></div></section>
+            </aside>
+
+            <section class="calendar-card">
+              <div class="calendar-toolbar"><div><p class="eyebrow">Holiday calendar</p><h1 id="monthTitle"></h1></div><div class="month-controls" aria-label="Calendar navigation"><button id="previousMonth" class="icon-button" type="button" aria-label="Previous month">&larr;</button><button id="todayButton" class="button button-secondary" type="button">Today</button><button id="nextMonth" class="icon-button" type="button" aria-label="Next month">&rarr;</button></div></div>
+              <div id="calendarLoading" class="calendar-loading" role="status">Opening the protected calendar&hellip;</div>
+              <div id="calendarEmpty" class="calendar-empty" hidden><div class="empty-orbit" aria-hidden="true"><span></span></div><h2>No holidays added yet</h2><p>The first holiday automatically creates the first holiday record.</p><button id="emptyAddButton" class="button button-primary" type="button">Add the first holiday</button></div>
+              <div id="calendarDesktop" class="calendar-desktop" hidden><div class="weekday-row" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div id="calendarGrid" class="calendar-grid" role="grid" aria-labelledby="monthTitle"></div></div>
+              <div id="mobileAgenda" class="mobile-agenda" hidden></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="workPage" class="page-view work-page" aria-labelledby="workTitle" hidden>
+          <h1 id="workTitle" class="visually-hidden">Work location</h1>
+          <div id="workSchedule" class="work-schedule"></div>
+          <p id="workMessage" class="form-message work-message" role="status"></p>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="holidayDialog" class="modal">
+      <form id="holidayForm" class="modal-card" method="dialog" novalidate>
+        <div class="modal-heading"><div><p id="holidayModalEyebrow" class="eyebrow">New time away</p><h2 id="holidayModalTitle">Add holiday</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="holidayDialog" aria-label="Close">&times;</button></div>
+        <input id="editPersonId" type="hidden"><input id="editHolidayId" type="hidden">
+        <div class="field"><label for="employeeName">Employee name</label><input id="employeeName" name="name" type="text" autocomplete="name" maxlength="80" required placeholder="Enter a full name"><p id="employeeNameHint" class="field-hint">Your own account is selected automatically.</p></div>
+        <div class="date-fields">
+          <div class="field"><label for="holidayStartButton">From</label><input id="holidayStart" name="start" type="hidden"><button id="holidayStartButton" class="date-picker-trigger" type="button" aria-haspopup="dialog" aria-controls="datePickerDialog" aria-describedby="holidayDateHint holidayFormMessage"><span id="holidayStartDisplay">Choose a date</span><span class="date-picker-icon" aria-hidden="true">▦</span></button></div>
+          <div class="field"><label for="holidayEndButton">To</label><input id="holidayEnd" name="end" type="hidden"><button id="holidayEndButton" class="date-picker-trigger" type="button" aria-haspopup="dialog" aria-controls="datePickerDialog" aria-describedby="holidayDateHint holidayFormMessage"><span id="holidayEndDisplay">Choose a date</span><span class="date-picker-icon" aria-hidden="true">▦</span></button></div>
+        </div>
+        <p id="holidayDateHint" class="field-hint">Weekend dates are disabled. A range can pass over a weekend.</p>
+        <p id="holidayFormMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><button id="deleteHolidayButton" class="button button-danger" type="button" hidden>Delete holiday</button><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="holidayDialog">Cancel</button><button id="saveHolidayButton" class="button button-primary" type="submit">Save holiday</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="dayHolidaysDialog" class="modal modal-day-holidays">
+      <section class="modal-card">
+        <div class="modal-heading"><div><p class="eyebrow">Everyone away</p><h2 id="dayHolidaysTitle">Day</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="dayHolidaysDialog" aria-label="Close">&times;</button></div>
+        <div id="dayHolidaysList" class="day-holidays-list"></div>
+        <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="dayHolidaysDialog">Close</button></div>
+      </section>
+    </dialog>
+
+    <dialog id="momDialog" class="modal mom-modal" aria-labelledby="momDialogTitle">
+      <section class="modal-card mom-viewer-card">
+        <span class="mom-viewer-orbit orbit-one" aria-hidden="true"></span><span class="mom-viewer-orbit orbit-two" aria-hidden="true"></span>
+        <div class="modal-heading mom-viewer-heading"><div><p class="eyebrow">Minutes of meeting</p><h2 id="momDialogTitle">Meeting notes</h2><p>Decisions, context, and the details worth keeping.</p></div><button class="icon-button modal-close" type="button" data-close-dialog="momDialog" aria-label="Close">&times;</button></div>
+        <div id="momReadView" class="mom-viewer-content" role="region" aria-label="Full meeting notes" tabindex="0"><span class="mom-quote-mark" aria-hidden="true">&ldquo;</span><p id="momExpandedValue" class="mom-expanded-copy"></p></div>
+        <form id="momQuickForm" class="feature-direct-form" novalidate hidden>
+          <div class="field"><label for="momQuickInput">MOM</label><textarea id="momQuickInput" maxlength="1200" rows="12"></textarea></div>
+          <p id="momQuickMessage" class="form-message" role="alert"></p>
+          <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="momDialog">Cancel</button><button id="saveMomQuick" class="button button-primary" type="submit">Save MOM</button></div>
+        </form>
+        <div id="momReadActions" class="modal-actions"><button id="momEditButton" class="button button-secondary" type="button">Edit MOM</button><span class="action-spacer"></span><button class="button button-primary" type="button" data-close-dialog="momDialog">Done</button></div>
+      </section>
+    </dialog>
+
+    <dialog id="shoutoutsDialog" class="modal feature-editor-modal" aria-labelledby="shoutoutsDialogTitle">
+      <form id="shoutoutsForm" class="modal-card feature-editor-card" novalidate>
+        <div class="modal-heading"><div><p class="eyebrow">Team recognition</p><h2 id="shoutoutsDialogTitle">Shoutouts</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="shoutoutsDialog" aria-label="Close">&times;</button></div>
+        <div class="admin-period-grid"><div class="field"><label for="directShoutoutStart">From</label><input id="directShoutoutStart" type="date"></div><div class="field"><label for="directShoutoutEnd">To</label><input id="directShoutoutEnd" type="date"></div></div>
+        <div id="directShoutoutPeople" class="admin-feature-rows feature-account-rows"></div>
+        <button id="directAddShoutoutPerson" class="button button-secondary button-small admin-add-row" type="button">Add person</button>
+        <p id="shoutoutsFormMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="shoutoutsDialog">Cancel</button><button id="saveShoutouts" class="button button-primary" type="submit">Save shoutouts</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="birthdaysDialog" class="modal feature-editor-modal" aria-labelledby="birthdaysDialogTitle">
+      <form id="birthdaysForm" class="modal-card feature-editor-card" novalidate>
+        <div class="modal-heading"><div><p class="eyebrow">Team birthdays</p><h2 id="birthdaysDialogTitle">Birthdays</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="birthdaysDialog" aria-label="Close">&times;</button></div>
+        <div id="directBirthdays" class="admin-feature-rows feature-account-rows"></div>
+        <button id="directAddBirthday" class="button button-secondary button-small admin-add-row" type="button">Add birthday</button>
+        <p id="birthdaysFormMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="birthdaysDialog">Cancel</button><button id="saveBirthdays" class="button button-primary" type="submit">Save birthdays</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="profileDialog" class="modal profile-modal" aria-labelledby="profileDialogTitle">
+      <form id="profileForm" class="modal-card profile-card" method="dialog" novalidate>
+        <div class="modal-heading"><div><p class="eyebrow">Your account</p><h2 id="profileDialogTitle">Personal profile</h2><p class="profile-intro">Choose how your name appears everywhere in Dream Team.</p></div><button class="icon-button modal-close" type="button" data-close-dialog="profileDialog" aria-label="Close">&times;</button></div>
+        <div class="profile-identity"><span class="profile-avatar-large" aria-hidden="true"><span></span></span><div><strong id="profileCurrentName"></strong><span>Private encrypted account</span></div></div>
+        <div class="field"><label for="profileName">Display and login name</label><input id="profileName" name="name" type="text" autocomplete="name" maxlength="80" required><p class="field-hint">After saving, use this new name the next time you log in.</p></div>
+        <div class="field"><label for="profilePassword">Current personal password</label><input id="profilePassword" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="256" required><p class="field-hint">Required to securely move your encrypted account. Your password is never stored.</p></div>
+        <p id="profileMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="profileDialog">Cancel</button><button id="saveProfileButton" class="button button-primary" type="submit">Save profile</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="datePickerDialog" class="modal date-picker-modal">
+      <section class="modal-card date-picker-card" aria-labelledby="datePickerTitle">
+        <div class="date-picker-heading">
+          <button id="datePickerPrevious" class="icon-button" type="button" aria-label="Previous month">‹</button>
+          <div><p id="datePickerFieldLabel" class="eyebrow">Choose date</p><h2 id="datePickerTitle">Month</h2></div>
+          <button id="datePickerNext" class="icon-button" type="button" aria-label="Next month">›</button>
+        </div>
+        <div class="date-picker-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+        <div id="datePickerGrid" class="date-picker-grid" role="group" aria-labelledby="datePickerTitle"></div>
+        <p class="field-hint date-picker-hint">Saturday and Sunday are unavailable.</p>
+        <div class="modal-actions"><span class="action-spacer"></span><button id="datePickerCancel" class="button button-secondary" type="button">Cancel</button></div>
+      </section>
+    </dialog>
+
+    <dialog id="teamOfficeDaysDialog" class="modal office-days-modal" aria-labelledby="teamOfficeDaysTitle">
+      <section class="modal-card office-days-card">
+        <div class="modal-heading"><div><p class="eyebrow">Monthly team default</p><h2 id="teamOfficeDaysTitle">Choose office days</h2><p>Pick up to four weekdays. Everyone defaults to Office on these dates, but holidays remain Holiday and personal Home overrides remain available.</p></div><button class="icon-button modal-close" type="button" data-close-dialog="teamOfficeDaysDialog" aria-label="Close">&times;</button></div>
+        <div class="office-days-picker-heading">
+          <button id="officeDaysPrevious" class="icon-button" type="button" aria-label="Previous month">&lsaquo;</button>
+          <div><strong id="officeDaysMonthTitle"></strong><span id="officeDaysSelectionCount">0 of 4 selected</span></div>
+          <button id="officeDaysNext" class="icon-button" type="button" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div class="date-picker-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+        <div id="officeDaysGrid" class="date-picker-grid office-days-grid" role="group" aria-labelledby="officeDaysMonthTitle"></div>
+        <p id="officeDaysMessage" class="form-message" role="alert"></p>
+        <div class="modal-actions"><button id="clearOfficeDays" class="button button-secondary" type="button">Clear month</button><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="teamOfficeDaysDialog">Cancel</button><button id="saveOfficeDays" class="button button-primary" type="button">Save office days</button></div>
+      </section>
+    </dialog>
+
+    <dialog id="adminDialog" class="modal modal-wide">
+      <section class="modal-card">
+        <div class="modal-heading"><div><p class="eyebrow">Restricted controls</p><h2>Admin</h2></div><button class="icon-button modal-close" type="button" data-close-dialog="adminDialog" aria-label="Close">&times;</button></div>
+        <form id="adminLoginForm" novalidate>
+          <p class="modal-intro">Enter the separate Admin password to edit the homepage or manage holiday records.</p>
+          <div class="field"><label for="adminPassword">Admin password</label><input id="adminPassword" type="password" autocomplete="current-password" maxlength="256" required></div>
+          <p id="adminLoginMessage" class="form-message" role="alert"></p>
+          <div class="modal-actions"><span class="action-spacer"></span><button class="button button-secondary" type="button" data-close-dialog="adminDialog">Cancel</button><button class="button button-primary" type="submit">Continue</button></div>
+        </form>
+        <div id="adminPanel" hidden>
+          <form id="configForm" novalidate>
+            <div class="admin-section-heading"><div><p class="eyebrow">Homepage</p><h3>Portal settings</h3></div></div>
+            <div class="field"><label for="groupNameInput">Group name</label><input id="groupNameInput" maxlength="80" required></div>
+            <div class="admin-section-heading link-editor-heading"><div><p class="eyebrow">Shortcuts</p><h3>Six quick links</h3></div></div>
+            <div id="adminLinks" class="admin-links"></div>
+            <p id="configFormMessage" class="form-message" role="alert"></p>
+            <div class="modal-actions"><span class="action-spacer"></span><button class="button button-primary" type="submit">Save homepage</button></div>
+          </form>
+          <div class="admin-divider"></div>
+          <section aria-labelledby="managePeopleTitle"><div class="admin-section-heading"><div><p class="eyebrow">Holiday calendar</p><h3 id="managePeopleTitle">Manage holiday records</h3></div></div><div id="adminPeopleList" class="admin-people-list"></div></section>
+        </div>
+      </section>
+    </dialog>
+
+    <dialog id="confirmDialog" class="modal modal-confirm">
+      <section class="modal-card"><div class="confirm-icon" aria-hidden="true">!</div><h2 id="confirmTitle">Are you sure?</h2><p id="confirmMessage"></p><div class="modal-actions"><span class="action-spacer"></span><button id="confirmCancel" class="button button-secondary" type="button">Cancel</button><button id="confirmAccept" class="button button-danger" type="button">Delete</button></div></section>
+    </dialog>
+
+    <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <script type="module" src="assets/app.js?v=20260825-security-v1"></script>
+  </body>
+</html>

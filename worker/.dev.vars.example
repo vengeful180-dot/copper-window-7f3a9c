@@ -1,0 +1,8 @@
+SITE_AUTH_TOKEN_HASH=generated-placeholder
+ADMIN_PASSWORD_HASH=generated-placeholder
+ADMIN_PASSWORD_SALT=generated-placeholder
+ADMIN_SESSION_SECRET=generated-placeholder
+GITHUB_DATA_TOKEN=github-fine-grained-token
+GITHUB_OWNER=your-github-owner
+GITHUB_REPO=your-repository-name
+ALLOWED_ORIGIN=http://127.0.0.1:5173
